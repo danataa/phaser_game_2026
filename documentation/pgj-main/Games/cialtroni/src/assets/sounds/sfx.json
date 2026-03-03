@@ -1,0 +1,196 @@
+{
+  "resources": [
+    "../../assets/sounds/sfx.ogg",
+    "../../assets/sounds/sfx.m4a"
+  ],
+  "spritemap": {
+    "punch0": {
+      "start": 0,
+      "end": 0.347,
+      "loop": false
+    },
+    "punch1": {
+      "start": 0.400,
+      "end": 0.725,
+      "loop": false
+    },
+    "punch2": {
+      "start": 0.845,
+      "end": 1.232,
+      "loop": false
+    },
+    "hit0": {
+      "start": 1.349,
+      "end": 1.650,
+      "loop": false
+    },
+    "hitCar0": {
+      "start": 1.709,
+      "end": 2.634,
+      "loop": false
+    },
+    "hitCar1": {
+      "start": 2.690,
+      "end": 3.645,
+      "loop": false
+    },
+    "hitCar2": {
+      "start": 3.650,
+      "end": 4.500,
+      "loop": false
+    },
+    "hit1": {
+      "start": 4.550,
+      "end": 4.900,
+      "loop": false
+    },
+    "hit2": {
+      "start": 4.900,
+      "end": 5.200,
+      "loop": false
+    },
+    "hit3": {
+      "start": 5.300,
+      "end": 5.600,
+      "loop": false
+    },
+    "hit4": {
+      "start": 5.600,
+      "end": 6,
+      "loop": false
+    },
+    "hitMetal0": {
+      "start": 6.100,
+      "end": 6.500,
+      "loop": false
+    },
+    "hitMetal1": {
+      "start": 6.900,
+      "end": 7.500,
+      "loop": false
+    },
+    "hitMetal2": {
+      "start": 7.900,
+      "end": 8.500,
+      "loop": false
+    },
+    "hitGround": {
+      "start": 8.650,
+      "end": 9.400,
+      "loop": false
+    },
+    "fire": {
+      "start": 9.742,
+      "end": 10.176,
+      "loop": false
+    },
+    "bonus": {
+      "start": 10.222,
+      "end": 10.962,
+      "loop": false
+    },
+    "jump": {
+      "start": 10.985,
+      "end": 11.250,
+      "loop": false
+    },
+    "land": {
+      "start": 11.262,
+      "end": 11.600,
+      "loop": false
+    },
+    "jump1": {
+      "start": 11.625,
+      "end": 11.820,
+      "loop": false
+    },
+    "death0": {
+      "start": 11.800,
+      "end": 12.600,
+      "loop": false
+    },
+    "death1": {
+      "start": 12.755,
+      "end": 13.811,
+      "loop": false
+    },
+    "death2": {
+      "start": 13.820,
+      "end": 15.130,
+      "loop": false
+    },
+    "ouch0": {
+      "start": 15.130,
+      "end": 15.640,
+      "loop": false
+    },
+    "ouch1": {
+      "start": 15.680,
+      "end": 16.130,
+      "loop": false
+    },
+    "ouch2": {
+      "start": 16.170,
+      "end": 16.570,
+      "loop": false
+    },
+    "jingle0": {
+      "start": 16.594,
+      "end": 20.570,
+      "loop": false
+    },
+     "jingle1": {
+      "start": 20.580,
+      "end": 25.200,
+      "loop": false
+    },
+     "jingle2": {
+      "start": 25.200,
+      "end": 28.591,
+      "loop": false
+    },
+    
+     "jingle3": {
+      "start": 28.591,
+      "end": 30.738,
+      "loop": false
+    },
+     "selection": {
+      "start": 30.807,
+      "end": 31.400,
+      "loop": false
+    },
+    
+     "gun": {
+      "start": 31.500,
+      "end": 31.790,
+      "loop": false
+    },
+    "click": {
+      "start": 31.796,
+      "end": 31.800,
+      "loop": false
+    },
+      "bonus-activate": {
+      "start": 31.821,
+      "end": 34.300,
+      "loop": false
+    },
+       "rage-end": {
+      "start": 34.686,
+      "end": 35.630,
+      "loop": false
+    },
+        "countdown": {
+      "start": 35.630,
+      "end": 35.863,
+      "loop": false
+    },
+    
+        "time-bonus": {
+      "start": 35.873,
+      "end": 36.562,
+      "loop": false
+    }
+  }
+}
