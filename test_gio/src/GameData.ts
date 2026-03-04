@@ -1,11 +1,16 @@
+// GameData contiene tutti i dati globali del gioco (configurazione, asset, scene)
+// È la fonte centralizzata di verità per tutto il progetto
+
 export let GameData: gameData = {
+  // Configurazione globale del gioco
   globals: {
     gameWidth: 1280,
     gameHeight: 800,
     bgColor: "#ffffff",
-    debug: false
+    debug: false,
   },
 
+  // Configurazione della scena Preloader (schermata di caricamento)
   preloader: {
     bgColor: "ffffff",
     image: "logo",
@@ -19,13 +24,13 @@ export let GameData: gameData = {
     loadingBarY: 630,
   },
 
+  // Spritesheet del player: immagine con 50 frame, ogni frame 82x70px
   spritesheets: [
-
     { name: "player", path: "assets/images/player.png", width: 82, height: 70, frames: 50 },
-
   ],
-  images: [
 
+  // Immagini statiche utilizzate nelle varie scene
+  images: [
     { name: "phaser", path: "assets/images/logo-phaser.png" },
     { name: "freedoom", path: "assets/images/freedoom.png" },
     { name: "thelucasart", path: "assets/images/thelucasart.png" },
@@ -37,38 +42,22 @@ export let GameData: gameData = {
     { name: "bg-5", path: "assets/images/bg/5.png" },
     { name: "bg-6", path: "assets/images/bg/6.png" },
     { name: "bg-7", path: "assets/images/bg/7.png" },
-
-
-
-  ],
-  atlas: [],
-  sounds: [
-    /*{
-    name: "music",
-    paths: ["assets/sounds/intro.ogg", "assets/sounds/intro.m4a"],
-    volume: 1,
-    loop: true,
-    frame: 1,
-  }*/
+    // Mappa di gioco usata come sfondo statico nella scena GamePlay
+    { name: "tilemap", path: "assets/images/TileMap.png" },
   ],
 
-  videos: [
+  tilemaps: [],   // Nessuna tilemap Tiled — la mappa è un'immagine statica
+  atlas: [],      // Nessun texture atlas
+  sounds: [],     // Nessun suono
+  videos: [],     // Nessun video
+  audios: [],     // Nessun audiosprite
+  scripts: [],    // Nessun script esterno
 
-    // { name: "video", path: "/assets/video/video.mp4" },
+  // Font locale caricato tramite CSS
+  fonts: [{ key: "ralewayRegular", path: "assets/fonts/raleway.regular.ttf", type: "truetype" }],
 
-  ],
-  audios: [
+  // Font Google caricati tramite WebFontLoader
+  webfonts: [{ key: "Nosifer" }, { key: "Roboto" }, { key: "Press+Start+2P" }, { key: "Rubik+Doodle+Shadow" }, { key: "Rubik+Glitch" }],
 
-    /*{
-    name: "sfx",
-    jsonpath: "assets/sounds/sfx.json",
-    paths: ["assets/sounds/sfx.ogg", "assets/sounds/sfx.m4a"],
-    instances: 10,
-  }*/
-  ],
-
-  scripts: [],
-  fonts: [{key:"ralewayRegular", path:"assets/fonts/raleway.regular.ttf",type:"truetype"}],
-  webfonts: [{ key: 'Nosifer' }, { key: 'Roboto' }, { key: 'Press+Start+2P' }, { key: 'Rubik+Doodle+Shadow' }, { key: 'Rubik+Glitch' }],
-  bitmapfonts: [],
+  bitmapfonts: [], // Nessun bitmap font
 };
