@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <map version="1.10" tiledversion="1.11.1-99-gec89c545" orientation="orthogonal" renderorder="right-down" width="50" height="50" tilewidth="32" tileheight="32" infinite="0" nextlayerid="3" nextobjectid="1">
  <tileset firstgid="1" name="tileset_inferno" tilewidth="32" tileheight="32" tilecount="60" columns="10">
-  <image source="../tileset_inferno.png" width="320" height="192"/>
+  <image source="../../tileset_inferno.png" width="320" height="192"/>
   <tile id="52">
    <properties>
     <property name="collide" type="bool" value="true"/>
