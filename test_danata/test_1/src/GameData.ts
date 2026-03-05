@@ -1,16 +1,16 @@
 export let GameData: gameData = {
   globals: {
-    gameWidth: 1280,
-    gameHeight: 800,
-    bgColor: "#ffffff",
-    debug: false
+    gameWidth: 1920,
+    gameHeight: 1080,
+    bgColor: "#000000",
+    debug: true
   },
 
   preloader: {
     bgColor: "ffffff",
-    image: "logo",
-    imageX: 1280 / 2,
-    imageY: 800 / 2,
+    image: "freedoom",
+    imageX: 1920 / 2,
+    imageY: 1080 / 2,
     loadingText: "Caricamento...",
     loadingTextFont: "roboto",
     loadingTextComplete: "Tappa/clicca per iniziare!!",

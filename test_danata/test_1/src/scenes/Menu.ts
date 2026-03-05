@@ -1,13 +1,11 @@
-export default class Intro extends Phaser.Scene {
+export default class Menu extends Phaser.Scene {
 
   private _image1: Phaser.GameObjects.Image;
 
 
 
   constructor() {
-    super({
-      key: "Intro",
-    });
+    super({ key: "Menu" });
 
   }
 
@@ -21,7 +19,7 @@ export default class Intro extends Phaser.Scene {
     this.cameras.main.setBackgroundColor("#000000");
 
 
-    this._image1 = this.add.image(this.game.canvas.width / 2, this.game.canvas.height / 2, "phaser")
+    this._image1 = this.add.image(this.game.canvas.width / 2, this.game.canvas.height / 2, "phaser");
 
   }
 
