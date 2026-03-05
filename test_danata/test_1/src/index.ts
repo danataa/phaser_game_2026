@@ -1,12 +1,14 @@
 //importiamo la libreria phaser
 import "phaser";
+
 //importiamo le nostre scene
 import Boot from "./scenes/Boot";
 import Hud from "./scenes/Hud";
 import Preloader from "./scenes/Preloader";
 import GamePlay from "./scenes/GamePlay";
 import GameOver from "./scenes/GameOver";
-import Intro from "./scenes/Intro";
+import Menu from "./scenes/Menu";
+
 //importiamo GameData che contiene i valori globali del gioco
 import { GameData } from "./GameData";
 
@@ -34,10 +36,11 @@ window.addEventListener("load", () => {
       Boot,
       Hud,
       Preloader,
-      Intro,
+      Menu,
       GamePlay,
       GameOver
     ],
+
     physics: {
       default: "arcade",
       arcade: { debug: GameData.globals.debug, }
@@ -47,6 +50,7 @@ window.addEventListener("load", () => {
       activePointers: 2,
       keyboard: true,
     },
+
     render: {
       pixelArt: false,
       antialias: true,
