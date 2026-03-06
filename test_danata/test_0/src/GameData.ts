@@ -3,7 +3,7 @@ export let GameData: gameData = {
     gameWidth: 1280,
     gameHeight: 800,
     bgColor: "#ffffff",
-    debug: false
+    debug: true
   },
 
   preloader: {
@@ -21,7 +21,7 @@ export let GameData: gameData = {
 
   spritesheets: [
 
-    { name: "player", path: "assets/images/player.png", width: 82, height: 70, frames: 50 },
+    { name: "player", path: "assets/images/Run.png", width: 192, height: 192, frames: 4 },
     { name: "tileset_0", path: "assets/map/tileset_inferno.png", width: 320, height: 192, frames: 0 },
     
   ],
