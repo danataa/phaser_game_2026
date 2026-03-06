@@ -27,6 +27,7 @@ export let GameData: gameData = {
   // Spritesheet del player: immagine con 50 frame, ogni frame 82x70px
   spritesheets: [
     { name: "player", path: "assets/images/player.png", width: 82, height: 70, frames: 50 },
+    // tileset_0 rimosso da qui — va in images, non in spritesheets
   ],
 
   // Immagini statiche utilizzate nelle varie scene
@@ -42,22 +43,22 @@ export let GameData: gameData = {
     { name: "bg-5", path: "assets/images/bg/5.png" },
     { name: "bg-6", path: "assets/images/bg/6.png" },
     { name: "bg-7", path: "assets/images/bg/7.png" },
-    // Mappa di gioco usata come sfondo statico nella scena GamePlay
-    { name: "tilemap", path: "assets/images/TileMap.png" },
+    // Tileset della mappa — deve stare in images, non in spritesheets
+    { name: "tileset_0", path: "assets/map/tileset_inferno.png" },
   ],
 
-  tilemaps: [],   // Nessuna tilemap Tiled — la mappa è un'immagine statica
-  atlas: [],      // Nessun texture atlas
-  sounds: [],     // Nessun suono
-  videos: [],     // Nessun video
-  audios: [],     // Nessun audiosprite
-  scripts: [],    // Nessun script esterno
+  // Tilemap JSON esportata da Tiled
+  tilemaps: [
+    { key: "tilemap_0", path: "assets/map/test_0.json" },
+  ],
 
-  // Font locale caricato tramite CSS
+  atlas: [],
+  sounds: [],
+  videos: [],
+  audios: [],
+  scripts: [],
+
   fonts: [{ key: "ralewayRegular", path: "assets/fonts/raleway.regular.ttf", type: "truetype" }],
-
-  // Font Google caricati tramite WebFontLoader
   webfonts: [{ key: "Nosifer" }, { key: "Roboto" }, { key: "Press+Start+2P" }, { key: "Rubik+Doodle+Shadow" }, { key: "Rubik+Glitch" }],
-
-  bitmapfonts: [], // Nessun bitmap font
+  bitmapfonts: [],
 };
