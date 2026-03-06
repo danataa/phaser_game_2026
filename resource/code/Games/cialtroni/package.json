@@ -1,0 +1,77 @@
+{
+  "name": "phaser-project-template",
+  "version": "3.90.0",
+  "description": "Phaser 3.90.0 starter template with TypeScript and webpack.",
+  "homepage": "https://github.com/yandeu/phaser-project-template#readme",
+  "main": "index.js",
+  "scripts": {
+    "start": "webpack serve --open --config webpack/webpack.dev.js",
+    "build": "rimraf dist && webpack --config webpack/webpack.prod.js",
+    "bundle": "npm run build",
+    "serve": "serve dist",
+    "format": "prettier --check src/scripts/**",
+    "format:write": "prettier --write src/scripts/**"
+  },
+  "keywords": [
+    "Phaser",
+    "Phaser 3",
+    "Phaser3",
+    "html5 game",
+    "TypeScript",
+    "webpack",
+    "starter"
+  ],
+  "author": {
+    "name": "Yannick Deubel",
+    "url": "https://github.com/yandeu"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yandeu/phaser-project-template.git"
+  },
+  "template": {
+    "name": "phaser-project-template",
+    "url": "https://github.com/yandeu/phaser-project-template",
+    "author": "Yannick Deubel (https://github.com/yandeu)"
+  },
+  "engines": {
+    "node": ">=12"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@types/webfontloader": "^1.6.38",
+    "@yandeu/prettier-config": "^0.0.4",
+    "copy-webpack-plugin": "^13.0.1",
+    "css-loader": "^7.1.2",
+    "dotenv": "^17.2.3",
+    "html-webpack-plugin": "^5.6.5",
+    "javascript-obfuscator": "^4.2.1",
+    "mime-types": "^3.0.2",
+    "mini-css-extract-plugin": "^2.9.4",
+    "path": "^0.12.7",
+    "postcss": "^8.5.6",
+    "postcss-loader": "^8.2.0",
+    "prettier": "^3.7.4",
+    "rimraf": "^6.1.2",
+    "sass": "^1.94.2",
+    "sass-loader": "^16.0.6",
+    "serve": "^14.2.5",
+    "style-loader": "^4.0.0",
+    "ts-loader": "^9.5.4",
+    "typescript": "^5.9.3",
+    "webfontloader": "^1.6.28",
+    "webpack": "^5.103.0",
+    "webpack-cli": "^5.1.4",
+    "webpack-dev-server": "^5.2.2",
+    "webpack-merge": "^6.0.1",
+    "webpack-obfuscator": "^3.5.1"
+  },
+  "dependencies": {
+    "firebase": "^12.7.0",
+    "image-size": "^2.0.2",
+    "nipplejs": "^0.10.2",
+    "phaser": "^3.90.0",
+    "phaser3-rex-plugins": "^1.80.16",
+    "pick-random-weighted": "2.0.0"
+  }
+}
