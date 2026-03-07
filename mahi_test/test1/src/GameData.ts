@@ -3,7 +3,7 @@ export let GameData: gameData = {
     gameWidth: 1280,
     gameHeight: 800,
     bgColor: "#ffffff",
-    debug: false
+    debug: true
   },
 
   preloader: {
@@ -22,6 +22,8 @@ export let GameData: gameData = {
   spritesheets: [
 
     { name: "player", path: "assets/images/player.png", width: 82, height: 70, frames: 50 },
+    { name: "mago", path: "assets/images/Pawn_Idle.png", width: 191, height: 188, frames: 8 },
+
     { name: "tileset_0", path: "assets/map/tileset_inferno.png", width: 320, height: 192, frames: 0 },
     
   ],
@@ -65,12 +67,12 @@ export let GameData: gameData = {
   ],
   audios: [
 
-    {
+   /* {
     name: "sfx",
     jsonpath: "assets/sounds/sfx.json",
     paths: ["assets/sounds/sfx.ogg", "assets/sounds/sfx.m4a"],
     instances: 10,
-  }
+  } */
   ],
 
   scripts: [],
