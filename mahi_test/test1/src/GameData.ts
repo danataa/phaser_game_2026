@@ -23,12 +23,16 @@ export let GameData: gameData = {
 
     { name: "player", path: "assets/images/player.png", width: 82, height: 70, frames: 50 },
     { name: "mago", path: "assets/images/Pawn_Idle.png", width: 191, height: 188, frames: 8 },
-    { name: "tileset_0", path: "assets/map/tileset_inferno.png", width: 320, height: 192, frames: 0 },
+    { name: "tileset_0", path: "assets/map/mainlevbuild.png", width: 320, height: 192, frames: 0 },
+    
+    //{ name: "tileset_0", path: "assets/map/tileset_inferno.png", width: 320, height: 192, frames: 0 },
     
   ],
 
   tilemaps: [
-    {key: "tilemap_0", path: "/assets/map/test_0.json"}
+    //{key: "tilemap_0", path: "/assets/map/test_0.json"}
+
+    {key: "tilemap_0", path: "/assets/map/catacombe.json"}
   ],
 
   images: [
@@ -50,14 +54,13 @@ export let GameData: gameData = {
   ],
   atlas: [],
   sounds: [
-    /*{
-    name: "music",
-    paths: ["assets/sounds/intro.ogg", "assets/sounds/intro.m4a"],
-    volume: 1,
-    loop: true,
-    frame: 1,
-  }*/
-  ],
+    {
+      name: "music",
+      paths: ["assets/sounds/music.m4a"],
+      volume: 0.5,
+      loop: true,
+    }
+  ] as any,
 
   videos: [
 
