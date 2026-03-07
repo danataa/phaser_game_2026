@@ -27,7 +27,7 @@ window.addEventListener("load", () => {
 
     physics: {
       default: "arcade",      // Fisica ARCADE — leggera e adatta a giochi 2D top-down
-      arcade: { debug: false }, // debug: true mostra i collider, false in produzione
+      arcade: { debug: true }, // debug: true mostra i collider, false in produzione
     },
 
     input: {

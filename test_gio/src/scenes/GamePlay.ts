@@ -1,4 +1,8 @@
 import Alchimista from "../class_player/alchimista";
+import Chierico from "../class_player/chierico";
+import Cavaliere from "../class_player/cavaliere";
+import Player from "../class_player/Player";
+import Nemico from "../class_player/Nemico"; // opzionale per test
 
 export default class GamePlay extends Phaser.Scene {
 
@@ -6,39 +10,68 @@ export default class GamePlay extends Phaser.Scene {
   // ATTRIBUTI
   // ================================
   private _cameraPrincipale!: Phaser.Cameras.Scene2D.Camera;
-  private _giocatore!: Alchimista;
-  private _tastoInterazione!: Phaser.Input.Keyboard.Key;
-  private _oggettoInterattivo!: Phaser.Physics.Arcade.Sprite | null;
+  private _giocatore!: Player;
   private _mappa!: Phaser.Tilemaps.Tilemap;
-  private _layerMondo!: Phaser.Tilemaps.TilemapLayer;
-  private _layerCollisioni!: Phaser.Tilemaps.TilemapLayer;
+  private _layerTerreno!: Phaser.Tilemaps.TilemapLayer;
+  private _layerCespugli!: Phaser.Tilemaps.TilemapLayer;
+  private _oggettoInterattivo!: Phaser.Physics.Arcade.Sprite | null;
 
-  // Distanza massima in pixel entro cui è possibile interagire con un oggetto
+  // Gruppo nemici (pubblico per accesso dalle classi Player)
+  public nemici!: Phaser.Physics.Arcade.Group;
+
+  // Tasti
+  private _tastoInterazione!: Phaser.Input.Keyboard.Key;
+  private _tastoCavaliere!: Phaser.Input.Keyboard.Key;
+  private _tastoAlchimista!: Phaser.Input.Keyboard.Key;
+  private _tastoChierico!: Phaser.Input.Keyboard.Key;
+  private _tastoAbilita1!: Phaser.Input.Keyboard.Key; // F
+  private _tastoAbilita2!: Phaser.Input.Keyboard.Key; // G
+  private _tastoAbilita3!: Phaser.Input.Keyboard.Key; // H
+
   private readonly INTERACTION_RANGE = 48;
 
   constructor() {
     super({ key: "GamePlay" });
   }
 
-  // ================================
-  // CREATE
-  // ================================
   create() {
-    // L'ordine è importante: la mappa va creata prima del player e della camera
     this.creaMappa();
-    this.creaGiocatore();
+    this.creaGiocatoreIniziale();
+    this.creaNemiciDiProva();   // opzionale
     this.configuraCamera();
     this.configuraInput();
     this.creaQuadratoInterattivo(200, 200);
   }
 
-  // ================================
-  // UPDATE — chiamato ogni frame
-  // ================================
   update(time: number, delta: number): void {
     this._giocatore.update(time, delta);
 
-    // Controlliamo se il giocatore preme E vicino all'oggetto interattivo
+    // Cambio classe con tasti 1,2,3
+    if (Phaser.Input.Keyboard.JustDown(this._tastoCavaliere)) {
+      this.cambiaClasse('cavaliere');
+    } else if (Phaser.Input.Keyboard.JustDown(this._tastoAlchimista)) {
+      this.cambiaClasse('alchimista');
+    } else if (Phaser.Input.Keyboard.JustDown(this._tastoChierico)) {
+      this.cambiaClasse('chierico');
+    }
+
+    // Abilità contestuali (a seconda della classe corrente)
+    if (Phaser.Input.Keyboard.JustDown(this._tastoAbilita1)) {
+      if (this._giocatore instanceof Cavaliere) (this._giocatore as Cavaliere).scattoRapido();
+      else if (this._giocatore instanceof Chierico) (this._giocatore as Chierico).abilitaGuarigione();
+      else console.log("Abilità 1 non disponibile per questa classe");
+    }
+    if (Phaser.Input.Keyboard.JustDown(this._tastoAbilita2)) {
+      if (this._giocatore instanceof Cavaliere) (this._giocatore as Cavaliere).attaccoRavvicinato();
+      else if (this._giocatore instanceof Chierico) (this._giocatore as Chierico).scudoDivino();
+      else console.log("Abilità 2 non disponibile per questa classe");
+    }
+    if (Phaser.Input.Keyboard.JustDown(this._tastoAbilita3)) {
+      if (this._giocatore instanceof Chierico) (this._giocatore as Chierico).cerchioDiFuoco();
+      else console.log("Abilità 3 non disponibile per questa classe");
+    }
+
+    // Interazione con oggetto (tasto E)
     if (
       this._oggettoInterattivo &&
       Phaser.Input.Keyboard.JustDown(this._tastoInterazione) &&
@@ -54,92 +87,117 @@ export default class GamePlay extends Phaser.Scene {
   }
 
   // ================================
-  // METODI PRIVATI
+  // MAPPA
   // ================================
-
-  /**
-   * Crea la tilemap con i due layer:
-   * - "world": layer visivo con i tile dello sfondo
-   * - "collide": layer invisibile con i tile che bloccano il movimento
-   * Le collisioni sono attivate tramite la property "collide: true" settata in Tiled.
-   */
   private creaMappa(): void {
     this._mappa = this.make.tilemap({ key: "tilemap_0" });
-    const tileset = this._mappa.addTilesetImage("tileset_inferno", "tileset_0");
+    const tileset = this._mappa.addTilesetImage("Word", "tileset_word");
+    if (!tileset) {
+      console.error("Tileset non trovato!");
+      return;
+    }
 
-    // Layer visivo — renderizzato come sfondo
-    this._layerMondo = this._mappa.createLayer("world", tileset, 0, 0);
+    this._layerTerreno = this._mappa.createLayer("terreno", tileset, 0, 0);
+    if (!this._layerTerreno) console.warn("Layer 'terreno' non trovato");
 
-    // Layer collisioni — invisibile, usato solo per la fisica
-    this._layerCollisioni = this._mappa.createLayer("collide", tileset, 0, 0);
-    this._layerCollisioni.setCollisionByProperty({ collide: true });
-    this._layerCollisioni.setVisible(false);
+    this._layerCespugli = this._mappa.createLayer("cespugli", tileset, 0, 0);
+    if (this._layerCespugli) {
+      this._layerCespugli.setCollisionByProperty({ collide: true });
+    } else {
+      console.warn("Layer 'cespugli' non trovato");
+    }
 
-    // Bounds del mondo fisico basati sulle dimensioni reali della mappa
-    this.physics.world.setBounds(
-      0, 0,
-      this._mappa.widthInPixels,
-      this._mappa.heightInPixels
-    );
+    this.physics.world.setBounds(0, 0, this._mappa.widthInPixels, this._mappa.heightInPixels);
   }
 
-  /**
-   * Crea l'Alchimista al centro della mappa.
-   * Aggiunge il collider tra il player e il layer di collisioni.
-   */
-  private creaGiocatore(): void {
-    this._giocatore = new Alchimista({
+  // ================================
+  // GIOCATORE
+  // ================================
+  private creaGiocatoreIniziale(): void {
+    this._giocatore = new Cavaliere({
       scene: this,
       x: this._mappa.widthInPixels / 2,
       y: this._mappa.heightInPixels / 2,
     });
 
-    // Il player viene bloccato dai tile con collisioni
-    this.physics.add.collider(this._giocatore, this._layerCollisioni);
+    if (this._layerCespugli) {
+      this.physics.add.collider(this._giocatore, this._layerCespugli);
+    }
   }
 
-  /**
-   * Configura la camera principale:
-   * - imposta i bounds della camera alle dimensioni della mappa
-   * - avvia il follow del player con smoothing
-   * - zoom fisso a 2 per rendere i tile e i proiettili ben visibili
-   */
-  private configuraCamera(): void {
-    this._cameraPrincipale = this.cameras.main;
+  private cambiaClasse(tipo: 'cavaliere' | 'alchimista' | 'chierico'): void {
+    if (!this._giocatore) return;
+    const x = this._giocatore.x;
+    const y = this._giocatore.y;
 
-    // Bounds della camera — non va oltre i bordi della mappa
-    this._cameraPrincipale.setBounds(
-      0, 0,
-      this._mappa.widthInPixels,
-      this._mappa.heightInPixels
-    );
+    this._giocatore.destroy();
 
-    // Follow smooth del player
+    switch (tipo) {
+      case 'cavaliere':
+        this._giocatore = new Cavaliere({ scene: this, x, y });
+        console.log("✅ Cavaliere");
+        break;
+      case 'alchimista':
+        this._giocatore = new Alchimista({ scene: this, x, y });
+        console.log("✅ Alchimista");
+        break;
+      case 'chierico':
+        this._giocatore = new Chierico({ scene: this, x, y });
+        console.log("✅ Chierico");
+        break;
+    }
+
+    if (this._layerCespugli) {
+      this.physics.add.collider(this._giocatore, this._layerCespugli);
+    }
     this._cameraPrincipale.startFollow(this._giocatore, true, 0.1, 0.1);
 
-    // Zoom fisso a 2 — i tile sono 32px, con zoom 2 diventano 64px ben visibili
-    // Aumenta o diminuisci questo valore a piacere
+    if (this._oggettoInterattivo) {
+      this.ricreaColliderQuadrato();
+    }
+  }
+
+  // ================================
+  // NEMICI (per test)
+  // ================================
+  private creaNemiciDiProva(): void {
+    this.nemici = this.physics.add.group();
+    const nemico1 = new Nemico({ scene: this, x: 400, y: 400, texture: 'nemico' });
+    const nemico2 = new Nemico({ scene: this, x: 600, y: 500, texture: 'nemico' });
+    this.nemici.add(nemico1);
+    this.nemici.add(nemico2);
+    // Collider con il giocatore
+    this.physics.add.collider(this._giocatore, this.nemici);
+  }
+
+  // ================================
+  // CAMERA
+  // ================================
+  private configuraCamera(): void {
+    this._cameraPrincipale = this.cameras.main;
+    this._cameraPrincipale.setBounds(0, 0, this._mappa.widthInPixels, this._mappa.heightInPixels);
+    this._cameraPrincipale.startFollow(this._giocatore, true, 0.1, 0.1);
     this._cameraPrincipale.setZoom(2);
   }
 
-  /**
-   * Inizializza il tasto di interazione (E).
-   * I cursori direzionali e il tasto F sono gestiti dalla classe Player/Alchimista.
-   */
+  // ================================
+  // INPUT
+  // ================================
   private configuraInput(): void {
-    this._tastoInterazione = this.input.keyboard.addKey(
-      Phaser.Input.Keyboard.KeyCodes.E
-    );
+    this._tastoInterazione = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
+    this._tastoCavaliere = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ONE);
+    this._tastoAlchimista = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.TWO);
+    this._tastoChierico = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.THREE);
+    this._tastoAbilita1 = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.F);
+    this._tastoAbilita2 = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.G);
+    this._tastoAbilita3 = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.H);
   }
 
-  /**
-   * Crea un oggetto interattivo (quadrato verde) in una posizione specificata.
-   * Aggiunge collider con il player e overlap per la logica di interazione.
-   * I proiettili dell'Alchimista distruggono il quadrato al contatto.
-   */
+  // ================================
+  // OGGETTO INTERATTIVO
+  // ================================
   private creaQuadratoInterattivo(x: number, y: number): void {
     const size = 32;
-
     const gfx = this.add.graphics();
     gfx.fillStyle(0x00ff00);
     gfx.fillRect(0, 0, size, size);
@@ -148,60 +206,59 @@ export default class GamePlay extends Phaser.Scene {
 
     this._oggettoInterattivo = this.physics.add.staticSprite(x, y, "square");
     this._oggettoInterattivo.setImmovable(true);
+    this.ricreaColliderQuadrato();
+  }
 
-    // Il collider blocca fisicamente il player sull'oggetto
+  private ricreaColliderQuadrato(): void {
+    if (!this._oggettoInterattivo) return;
+
     this.physics.add.collider(this._giocatore, this._oggettoInterattivo, () => {
       this._giocatore.setVelocity(0);
     });
 
-    // L'overlap rileva la sovrapposizione per abilitare il tasto E
     this.physics.add.overlap(
       this._giocatore,
       this._oggettoInterattivo,
-      this.quandoSovrapposto as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback,
+      this.quandoSovrapposto as any,
       undefined,
       this
     );
 
-    // I proiettili distruggono il quadrato al contatto
-    this.physics.add.collider(
-      this._giocatore.proiettili,
-      this._oggettoInterattivo,
-      (proiettile, oggetto) => {
-        (proiettile as Phaser.Physics.Arcade.Image).destroy();
-        (oggetto as Phaser.Physics.Arcade.Sprite).destroy();
-        this._oggettoInterattivo = null;
-        console.log("Quadrato colpito da un proiettile!");
-      }
-    );
+    // Se il giocatore ha proiettili (es. Alchimista)
+    if ('proiettili' in this._giocatore && (this._giocatore as any).proiettili) {
+      this.physics.add.collider(
+        (this._giocatore as any).proiettili,
+        this._oggettoInterattivo,
+        (proiettile: any, oggetto: any) => {
+          proiettile.destroy();
+          oggetto.destroy();
+          this._oggettoInterattivo = null;
+          console.log("Quadrato colpito da un proiettile!");
+        }
+      );
+    }
   }
 
-  /**
-   * Callback dell'overlap: salva il riferimento all'oggetto vicino al player.
-   */
-  private quandoSovrapposto(
-    _player: Phaser.GameObjects.GameObject,
-    object2: Phaser.GameObjects.GameObject
-  ): void {
-    this._oggettoInterattivo = object2 as Phaser.Physics.Arcade.Sprite;
+  private quandoSovrapposto(_player: any, object2: any): void {
+    this._oggettoInterattivo = object2;
   }
 
-  /**
-   * Esegue l'interazione: mostra un messaggio temporaneo e distrugge l'oggetto.
-   */
   private gestisciInterazione(obj: Phaser.Physics.Arcade.Sprite): void {
-    const message = this.add
-      .text(
-        this._cameraPrincipale.worldView.centerX,
-        this._cameraPrincipale.worldView.centerY,
-        "Hai premuto il quadrato!",
-        { font: "24px Arial", color: "#ffffff" }
-      )
-      .setOrigin(0.5);
-
+    const message = this.add.text(
+      this._cameraPrincipale.worldView.centerX,
+      this._cameraPrincipale.worldView.centerY,
+      "Hai interagito!",
+      { font: "24px Arial", color: "#ffffff" }
+    ).setOrigin(0.5);
     this.time.delayedCall(2000, () => message.destroy());
-
     obj.destroy();
     this._oggettoInterattivo = null;
+  }
+
+  // ================================
+  // GETTER PER I NEMICI (opzionale, ma utile)
+  // ================================
+  public getNemici(): Phaser.Physics.Arcade.Group {
+    return this.nemici;
   }
 }

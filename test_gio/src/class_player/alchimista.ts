@@ -1,7 +1,7 @@
 import GamePlay from "../scenes/GamePlay";
 import Player from "./Player";
 
-export default class Alchimista extends Player {
+export default class alchimista extends Player {
 
   // ================================
   // ATTRIBUTI

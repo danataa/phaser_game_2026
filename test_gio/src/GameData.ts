@@ -27,7 +27,6 @@ export let GameData: gameData = {
   // Spritesheet del player: immagine con 50 frame, ogni frame 82x70px
   spritesheets: [
     { name: "player", path: "assets/images/player.png", width: 82, height: 70, frames: 50 },
-    // tileset_0 rimosso da qui — va in images, non in spritesheets
   ],
 
   // Immagini statiche utilizzate nelle varie scene
@@ -43,13 +42,13 @@ export let GameData: gameData = {
     { name: "bg-5", path: "assets/images/bg/5.png" },
     { name: "bg-6", path: "assets/images/bg/6.png" },
     { name: "bg-7", path: "assets/images/bg/7.png" },
-    // Tileset della mappa — deve stare in images, non in spritesheets
-    { name: "tileset_0", path: "assets/map/tileset_inferno.png" },
+    // Tileset della mappa
+    { name: "tileset_word", path: "assets/tilemap/tilemap.png" },
   ],
 
   // Tilemap JSON esportata da Tiled
   tilemaps: [
-    { key: "tilemap_0", path: "assets/map/test_0.json" },
+    { key: "tilemap_0", path: "assets/tilemap/tilemap.json" },
   ],
 
   atlas: [],

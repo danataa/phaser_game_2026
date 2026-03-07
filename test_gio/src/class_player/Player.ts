@@ -2,107 +2,116 @@ import GamePlay from "../scenes/GamePlay";
 
 export default class Player extends Phaser.Physics.Arcade.Sprite {
 
-  // ================================
-  // ATTRIBUTI
-  // ================================
-  private _scene: GamePlay;
-  private _health: number = 100;
-  private _speed: number = 150;
-  private _cursors: Phaser.Types.Input.Keyboard.CursorKeys;
-  private _tastoInterazione: Phaser.Input.Keyboard.Key;
+  protected _scena: GamePlay;
+  protected _vita: number = 100;
+  protected _vitaMassima: number = 100;
+  protected _velocita: number = 150;
+  protected _cursori: Phaser.Types.Input.Keyboard.CursorKeys;
+  protected _tastoInterazione: Phaser.Input.Keyboard.Key;
+  protected _inMovimento: boolean = false;
+  protected _direzione: string = 'giu';
+  protected _invulnerabile: boolean = false;
 
-  // ================================
-  // COSTRUTTORE
-  // ================================
   constructor(params: { scene: GamePlay; x: number; y: number }) {
     super(params.scene, params.x, params.y, "player");
 
-    this._scene = params.scene;
+    this._scena = params.scene;
+    this._scena.add.existing(this);
+    this._scena.physics.add.existing(this);
 
-    // Aggiungiamo il player alla scena e abilitiamo la fisica ARCADE
-    this._scene.add.existing(this);
-    this._scene.physics.add.existing(this);
-
-    // Il player non può uscire dai bounds del mondo fisico
     this.setCollideWorldBounds(true);
-
-    // Scala del personaggio
     this.setScale(0.5);
 
-    // Input da tastiera
-    this._cursors = this._scene.input.keyboard.createCursorKeys();
-    this._tastoInterazione = this._scene.input.keyboard.addKey(
+    this._cursori = this._scena.input.keyboard.createCursorKeys();
+    this._tastoInterazione = this._scena.input.keyboard.addKey(
       Phaser.Input.Keyboard.KeyCodes.E
     );
   }
 
-  // ================================
-  // CREATE — chiamato una volta dopo la costruzione
-  // Usato per animazioni e setup aggiuntivi
-  // ================================
   create(): void {
-    // Esempio animazione idle (da configurare con i frame del tuo spritesheet):
-    // this._scene.anims.create({
-    //   key: "idle",
-    //   frames: this._scene.anims.generateFrameNumbers("player", { start: 0, end: 3 }),
-    //   frameRate: 8,
-    //   repeat: -1,
-    // });
+    // Per animazioni
   }
 
-  // ================================
-  // UPDATE — chiamato ogni frame da GamePlay
-  // ================================
   update(time: number, delta: number): void {
     this.gestisciMovimento();
+    this.aggiornaAnimazione();
 
-    // Ogni volta che premi SPACE il player prende 10 danni
-    if (Phaser.Input.Keyboard.JustDown(this._cursors.space)) {
-      this.takeDamage(10);
+    if (Phaser.Input.Keyboard.JustDown(this._cursori.space)) {
+      this.subisciDanno(10);
     }
   }
 
-  // ================================
-  // MOVIMENTO
-  // ================================
   private gestisciMovimento(): void {
-    // Azzeriamo la velocità ad ogni frame: il player si ferma se nessun tasto è premuto
     this.setVelocity(0);
+    this._inMovimento = false;
 
-    if (this._cursors.left.isDown) {
-      this.setVelocityX(-this._speed);
-    } else if (this._cursors.right.isDown) {
-      this.setVelocityX(this._speed);
+    if (this._cursori.left.isDown) {
+      this.setVelocityX(-this._velocita);
+      this._inMovimento = true;
+      this._direzione = 'sinistra';
+    } else if (this._cursori.right.isDown) {
+      this.setVelocityX(this._velocita);
+      this._inMovimento = true;
+      this._direzione = 'destra';
     }
 
-    if (this._cursors.up.isDown) {
-      this.setVelocityY(-this._speed);
-    } else if (this._cursors.down.isDown) {
-      this.setVelocityY(this._speed);
+    if (this._cursori.up.isDown) {
+      this.setVelocityY(-this._velocita);
+      this._inMovimento = true;
+      this._direzione = 'su';
+    } else if (this._cursori.down.isDown) {
+      this.setVelocityY(this._velocita);
+      this._inMovimento = true;
+      this._direzione = 'giu';
     }
-  }
 
-  // ================================
-  // ALTRI METODI — comportamenti del personaggio
-  // ================================
-
-  /**
-   * Riduce la vita del player dell'importo specificato.
-   * Stampa la vita rimasta in console ad ogni danno ricevuto.
-   * Se la vita scende a zero o sotto, viene gestita la morte.
-   */
-  takeDamage(amount: number): void {
-    this._health -= amount;
-    console.log(`Vita rimasta: ${this._health}`);
-
-    if (this._health <= 0) {
-      console.log("Player è morto!");
-      // TODO: logica di morte (respawn, game over, ecc.)
+    if (this._inMovimento && this.body.velocity.x !== 0 && this.body.velocity.y !== 0) {
+      this.body.velocity.normalize().scale(this._velocita);
     }
   }
 
-  // Getter per accedere alla vita dall'esterno (es. dalla HUD)
-  get health(): number {
-    return this._health;
+  private aggiornaAnimazione(): void {
+    if (this._inMovimento) {
+      switch (this._direzione) {
+        case 'sinistra': this.play('cammina_sinistra', true); break;
+        case 'destra':   this.play('cammina_destra', true); break;
+        case 'su':       this.play('cammina_su', true); break;
+        case 'giu':      this.play('cammina_giu', true); break;
+      }
+    } else {
+      switch (this._direzione) {
+        case 'sinistra': this.play('idle_sinistra', true); break;
+        case 'destra':   this.play('idle_destra', true); break;
+        case 'su':       this.play('idle_su', true); break;
+        case 'giu':      this.play('idle_giu', true); break;
+      }
+    }
   }
+
+  public subisciDanno(amount: number): void {
+    if (this._invulnerabile) return;
+    this._vita = Math.max(this._vita - amount, 0);
+    console.log(`❤️ Vita rimasta: ${this._vita}`);
+    this._scena.events.emit('vita-cambiata', this._vita);
+    if (this._vita <= 0) this.muori();
+  }
+
+  public cura(amount: number): void {
+    this._vita = Math.min(this._vita + amount, this._vitaMassima);
+    this._scena.events.emit('vita-cambiata', this._vita);
+  }
+
+  private muori(): void {
+    console.log("💀 Il giocatore è morto!");
+    this.setVelocity(0);
+    this.setActive(false);
+    this.setVisible(false);
+    this._scena.events.emit('giocatore-morto');
+  }
+
+  public get vita(): number { return this._vita; }
+  public get vitaMassima(): number { return this._vitaMassima; }
+  public get velocita(): number { return this._velocita; }
+  public set velocita(valore: number) { this._velocita = valore; }
+  public set invulnerabile(stato: boolean) { this._invulnerabile = stato; }
 }
