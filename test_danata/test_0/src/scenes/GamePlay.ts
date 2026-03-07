@@ -42,6 +42,7 @@ export default class GamePlay extends Phaser.Scene {
     this.player = this.physics.add.sprite(100, 100, "player");
     this.player.setCollideWorldBounds(true);
     this.physics.add.collider(this.player, collideLayer);
+    this.player.setSize(50, 50).setOffset(70, 70); // regola il corpo fisico del player
 
     // telecamera segue il player
     this.cameras.main.startFollow(this.player);
@@ -58,7 +59,7 @@ export default class GamePlay extends Phaser.Scene {
     // definizioni animazioni
     this.anims.create({
       key: "walk",
-      frames: this.anims.generateFrameNumbers("player", { start: 10, end: 17 }),
+      frames: this.anims.generateFrameNumbers("player", { start: 0, end: 3 }),
       frameRate: 10,
       repeat: -1,
     });
