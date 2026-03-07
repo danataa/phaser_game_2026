@@ -20,7 +20,7 @@ export default class Cavaliere extends Player {
     super.update(time, delta);
   }
 
-  public scattoRapido(): void {
+  public scattoRapido(): void { //AUMENTARE VELOCITA PER BREVE TEMPO 
     if (this._scattoAttivo) return;
 
     const ora = this._scena.time.now;

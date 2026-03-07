@@ -61,11 +61,13 @@ export default class GamePlay extends Phaser.Scene {
       else if (this._giocatore instanceof Chierico) (this._giocatore as Chierico).abilitaGuarigione();
       else console.log("Abilità 1 non disponibile per questa classe");
     }
+
     if (Phaser.Input.Keyboard.JustDown(this._tastoAbilita2)) {
       if (this._giocatore instanceof Cavaliere) (this._giocatore as Cavaliere).attaccoRavvicinato();
       else if (this._giocatore instanceof Chierico) (this._giocatore as Chierico).scudoDivino();
       else console.log("Abilità 2 non disponibile per questa classe");
     }
+
     if (Phaser.Input.Keyboard.JustDown(this._tastoAbilita3)) {
       if (this._giocatore instanceof Chierico) (this._giocatore as Chierico).cerchioDiFuoco();
       else console.log("Abilità 3 non disponibile per questa classe");
@@ -99,8 +101,7 @@ export default class GamePlay extends Phaser.Scene {
 
     this._layerTerreno = this._mappa.createLayer("terreno", tileset, 0, 0);
     if (!this._layerTerreno) console.warn("Layer 'terreno' non trovato");
-
-    this._layerCespugli = this._mappa.createLayer("cespugli", tileset, 0, 0);
+      this._layerCespugli = this._mappa.createLayer("cespugli", tileset, 0, 0);
     if (this._layerCespugli) {
       this._layerCespugli.setCollisionByProperty({ collide: true });
     } else {

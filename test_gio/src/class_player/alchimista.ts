@@ -21,9 +21,10 @@ export default class alchimista extends Player {
     this._proiettili = params.scene.physics.add.group();
 
     // Tasto F per sparare
-    this._tastoSparo = params.scene.input.keyboard.addKey(
-      Phaser.Input.Keyboard.KeyCodes.F
-    );
+if (this.scene.input.activePointer.leftButtonDown() && 
+    _time - this._ultimoSparo >= this._cooldown) {
+  this.spara(time);
+}
   }
 
   // ================================
@@ -66,7 +67,7 @@ export default class alchimista extends Player {
     this._ultimoSparo = time;
 
     // Creiamo la texture del triangolino al volo con Graphics
-    if (!this.scene.textures.exists("triangolino")) {
+    if (!this.scene.textures.exists("triangolino")) { //tasto SINISTRO MOUSE PER SPARARE
       const gfx = this.scene.add.graphics();
       gfx.fillStyle(0xff6600);
       gfx.fillTriangle(8, 0, 16, 16, 0, 16);
