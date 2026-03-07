@@ -23,7 +23,6 @@ export let GameData: gameData = {
 
     { name: "player", path: "assets/images/player.png", width: 82, height: 70, frames: 50 },
     { name: "mago", path: "assets/images/Pawn_Idle.png", width: 191, height: 188, frames: 8 },
-
     { name: "tileset_0", path: "assets/map/tileset_inferno.png", width: 320, height: 192, frames: 0 },
     
   ],
