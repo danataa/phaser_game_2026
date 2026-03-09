@@ -4,17 +4,17 @@ export default class GamePlay extends Phaser.Scene {
   private player: Phaser.Physics.Arcade.Sprite & { hp: number; isInvulnerable: boolean };
   private enemies: Phaser.Physics.Arcade.Group;
   private bullets: Phaser.Physics.Arcade.Group;
+  private enemyBullets: Phaser.Physics.Arcade.Group;
   private cursors: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd: Phaser.Types.Input.Keyboard.CursorKeys;
   private tabKey: Phaser.Input.Keyboard.Key;
   private shiftKey: Phaser.Input.Keyboard.Key;
-  
+
   // UI
   private playerHealthBar: Phaser.GameObjects.Graphics;
   private abilityText: Phaser.GameObjects.Text;
   private sprintText: Phaser.GameObjects.Text;
   private objectiveText: Phaser.GameObjects.Text;
-  private hudElements: Phaser.GameObjects.Group;
   private hudCamera: Phaser.Cameras.Scene2D.Camera;
 
   // Game Logic
@@ -23,20 +23,17 @@ export default class GamePlay extends Phaser.Scene {
   private canSprint: boolean = true;
   private normalSpeed: number = 200;
   private sprintSpeed: number = 400;
-  
+
   private enemiesKilled: number = 0;
   private targetKills: number = 15;
   private isGameOver: boolean = false;
   private isPaused: boolean = false;
   private spawnEvent: Phaser.Time.TimerEvent;
   private bgMusic: Phaser.Sound.BaseSound;
-  
-  // Effetto Luce/Vignette
-  private lightOverlay: Phaser.GameObjects.RenderTexture;
-  
-  // UI
+
+  // Pause
   private pauseOverlay: Phaser.GameObjects.Container;
-  
+
   private lastDirection: Phaser.Math.Vector2 = new Phaser.Math.Vector2(1, 0);
   private escKey: Phaser.Input.Keyboard.Key;
 
@@ -54,15 +51,16 @@ export default class GamePlay extends Phaser.Scene {
     const tileset = map.addTilesetImage("mainlevbuild", "tileset_0");
     const floor = map.createLayer("floor", tileset, 0, 0);
     const collideLayer = map.createLayer("wall", tileset, 0, 0);
-    
+
     floor.setScale(2);
     collideLayer.setScale(2);
     collideLayer.setCollisionByProperty({ collide: true });
-    
+
     this.physics.world.setBounds(0, 0, map.widthInPixels * 2, map.heightInPixels * 2);
 
     this.bullets = this.physics.add.group();
     this.enemies = this.physics.add.group();
+    this.enemyBullets = this.physics.add.group();
 
     this.player = this.physics.add.sprite(200, 200, "player") as any;
     this.player.hp = 100;
@@ -72,17 +70,12 @@ export default class GamePlay extends Phaser.Scene {
     this.player.setOffset(26, 35);
     this.physics.add.collider(this.player, collideLayer);
 
-    // Inizializza effetto Luce/Vignette (RenderTexture grande come lo schermo)
-    this.lightOverlay = this.add.renderTexture(0, 0, GameData.globals.gameWidth, GameData.globals.gameHeight)
-      .setDepth(9999)
-      .setScrollFactor(0);
-    
     this.setupUI();
     this.setupPlayerAnims();
     this.setupPauseUI();
-    
+
     this.bgMusic = this.sound.get("music");
-    
+
     this.cameras.main.startFollow(this.player);
     this.cameras.main.setZoom(1.5);
 
@@ -93,7 +86,6 @@ export default class GamePlay extends Phaser.Scene {
     this.hudCamera.ignore(floor);
     this.hudCamera.ignore(collideLayer);
     this.hudCamera.ignore(this.player);
-    this.hudCamera.ignore(this.lightOverlay);
     if (this.physics.world.debugGraphic) {
       this.hudCamera.ignore(this.physics.world.debugGraphic);
     }
@@ -152,35 +144,28 @@ export default class GamePlay extends Phaser.Scene {
 
     this.physics.add.collider(this.enemies, collideLayer);
     this.physics.add.collider(this.bullets, collideLayer, (b: any) => b.destroy());
-    
+    this.physics.add.collider(this.enemyBullets, collideLayer, (b: any) => b.destroy());
+
     this.physics.add.overlap(this.bullets, this.enemies, (b: any, e: any) => {
       b.destroy();
       this.damageEnemy(e);
     });
 
+    this.physics.add.overlap(this.enemyBullets, this.player, (b: any, p: any) => {
+      b.destroy();
+      this.handlePlayerDamage();
+    });
+
     this.physics.add.collider(this.player, this.enemies, (p, e) => {
-      if (!this.player.isInvulnerable && !this.isGameOver) {
-        this.player.hp -= 10;
-        this.player.isInvulnerable = true;
-        this.player.setTint(0xff0000);
-        this.updatePlayerHealthBar();
-        if (this.player.hp <= 0) this.showEndScreen(false);
-        else {
-          this.time.delayedCall(1000, () => {
-            this.player.isInvulnerable = false;
-            this.player.clearTint();
-          });
-        }
-      }
+      this.handlePlayerDamage();
     });
 
     this.physics.add.collider(this.enemies, this.enemies);
-
     this.cursors = this.input.keyboard.createCursorKeys();
     this.wasd = this.input.keyboard.addKeys({
       up: "W", down: "S", left: "A", right: "D",
     }) as Phaser.Types.Input.Keyboard.CursorKeys;
-    
+
     this.tabKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.TAB);
     this.shiftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
     this.escKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
@@ -197,15 +182,32 @@ export default class GamePlay extends Phaser.Scene {
     });
   }
 
+  handlePlayerDamage() {
+    if (!this.player.isInvulnerable && !this.isGameOver) {
+      this.player.hp -= 10;
+      this.player.isInvulnerable = true;
+      this.player.setTint(0xff0000);
+      this.updatePlayerHealthBar();
+      if (this.player.hp <= 0) this.showEndScreen(false);
+      else {
+        this.time.delayedCall(1000, () => {
+          this.player.isInvulnerable = false;
+          this.player.clearTint();
+        });
+      }
+    }
+  }
+
   togglePause() {
     if (this.isGameOver) return;
     this.isPaused = !this.isPaused;
-    
+
     if (this.isPaused) {
       this.physics.pause();
       this.pauseOverlay.setVisible(true);
       this.player.anims.pause();
       this.enemies.getChildren().forEach((e: any) => e.anims.pause());
+      this.enemyBullets.getChildren().forEach((b: any) => { if(b.body) b.body.enable = false; });
       this.spawnEvent.paused = true;
       if (this.bgMusic) this.bgMusic.pause();
     } else {
@@ -213,6 +215,7 @@ export default class GamePlay extends Phaser.Scene {
       this.pauseOverlay.setVisible(false);
       this.player.anims.resume();
       this.enemies.getChildren().forEach((e: any) => e.anims.resume());
+      this.enemyBullets.getChildren().forEach((b: any) => { if(b.body) b.body.enable = true; });
       this.spawnEvent.paused = false;
       if (this.bgMusic) this.bgMusic.resume();
     }
@@ -227,7 +230,7 @@ export default class GamePlay extends Phaser.Scene {
 
   performAttack() {
     if (this.isGameOver || this.isPaused) return;
-    
+
     const pointer = this.input.activePointer;
     const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, pointer.worldX, pointer.worldY);
     this.lastDirection.set(Math.cos(angle), Math.sin(angle));
@@ -259,9 +262,9 @@ export default class GamePlay extends Phaser.Scene {
 
   setupPlayerAnims() {
     if (!this.anims.exists("walk")) {
-      this.anims.create({ key: "walk",  frames: this.anims.generateFrameNumbers("player", { start: 10, end: 17 }), frameRate: 10, repeat: -1 });
+      this.anims.create({ key: "walk", frames: this.anims.generateFrameNumbers("player", { start: 10, end: 17 }), frameRate: 10, repeat: -1 });
       this.anims.create({ key: "punch", frames: this.anims.generateFrameNumbers("player", { start: 41, end: 42 }), frameRate: 15, repeat: 0 });
-      this.anims.create({ key: "shoot", frames: this.anims.generateFrameNumbers("player", { start: 7,  end: 10 }), frameRate: 15, repeat: 0 });
+      this.anims.create({ key: "shoot", frames: this.anims.generateFrameNumbers("player", { start: 7, end: 10 }), frameRate: 15, repeat: 0 });
     }
   }
 
@@ -317,8 +320,11 @@ export default class GamePlay extends Phaser.Scene {
     }
 
     const enemy = this.enemies.create(x, y, textureKey) as any;
-    enemy.hp    = hp;
+    enemy.hp = hp;
     enemy.maxHp = enemy.hp;
+    enemy.type = type;
+    enemy.state = "CHASE";
+    enemy.lastAttackTime = 0;
     enemy.healthBar = this.add.graphics();
 
     if (this.hudCamera) {
@@ -331,7 +337,7 @@ export default class GamePlay extends Phaser.Scene {
     enemy.setDrag(100);
 
     if (type === "skeleton") {
-      enemy.setScale(0.6);
+      enemy.setScale(0.8);
       enemy.setBodySize(80, 100);
       enemy.setOffset(24, 20);
     } else if (type === "mago") {
@@ -383,6 +389,7 @@ export default class GamePlay extends Phaser.Scene {
   showEndScreen(victory: boolean) {
     this.isGameOver = true;
     this.physics.pause();
+    this.enemyBullets.clear(true, true);
     this.player.setTint(victory ? 0x00ff00 : 0xff0000);
     const overlay = this.add.rectangle(GameData.globals.gameWidth / 2, GameData.globals.gameHeight / 2, GameData.globals.gameWidth, GameData.globals.gameHeight, 0x000000, 0.7).setScrollFactor(0).setDepth(2000);
     const title = this.add.text(GameData.globals.gameWidth / 2, GameData.globals.gameHeight / 2 - 100, victory ? "VITTORIA!" : "GAME OVER", { fontSize: "60px", color: victory ? "#00ff00" : "#ff0000" }).setOrigin(0.5).setScrollFactor(0).setDepth(2001);
@@ -414,49 +421,94 @@ export default class GamePlay extends Phaser.Scene {
     });
   }
 
-  private updateLightEffect() {
-    this.lightOverlay.clear();
-    // 1. Riempie tutto di buio (alpha 0.85)
-    this.lightOverlay.fill(0x000000, 0.85);
+  private updateEnemyAI(enemy: any, time: number) {
+    if (this.isGameOver || this.isPaused) return;
 
-    const cam = this.cameras.main;
-    // 2. Calcola le coordinate del player a schermo
-    const screenX = (this.player.x - cam.worldView.x) * cam.zoom;
-    const screenY = (this.player.y - cam.worldView.y) * cam.zoom;
+    const dist = Phaser.Math.Distance.Between(enemy.x, enemy.y, this.player.x, this.player.y);
+    const angle = Phaser.Math.Angle.Between(enemy.x, enemy.y, this.player.x, this.player.y);
 
-    const gfx = this.make.graphics({ x: 0, y: 0, add: false });
-    
-    // 3. "Scava" un buco nella RenderTexture con un gradiente
-    const innerRadius = 150;
-    const outerRadius = 280;
-    const steps = 15;
-    
-    for (let r = outerRadius; r >= 0; r -= (outerRadius / steps)) {
-      // Per ERASE, il colore non importa, conta solo l'alpha
-      let alpha = 1;
-      if (r > innerRadius) {
-        alpha = 1 - ((r - innerRadius) / (outerRadius - innerRadius));
-      }
-      gfx.fillStyle(0xffffff, alpha);
-      gfx.fillCircle(screenX, screenY, r);
+    switch (enemy.type) {
+      case "skeleton":
+        this.updateSkeletonAI(enemy, dist, angle, time);
+        break;
+      case "mago":
+        this.updateMagoAI(enemy, dist, angle, time);
+        break;
+      case "demon":
+        this.updateDemonAI(enemy, dist, angle, time);
+        break;
     }
-    
-    // Applica ERASE alla RenderTexture
-    this.lightOverlay.erase(gfx);
 
-    // 4. Aggiungi un alone caldo sopra (opzionale ma chiesto nel prompt precedente)
-    // Usiamo blendMode normal per aggiungere colore
-    gfx.clear();
-    gfx.fillStyle(0xffe8c0, 0.1); // Molto tenue
-    gfx.fillCircle(screenX, screenY, innerRadius);
-    this.lightOverlay.draw(gfx);
+    enemy.setFlipX(enemy.body.velocity.x < 0);
+    this.updateEnemyHealthBar(enemy);
+  }
 
-    gfx.destroy();
+  private updateSkeletonAI(enemy: any, dist: number, angle: number, time: number) {
+    // Lo scheletro insegue e quando è vicino fa un piccolo scatto (lunge)
+    if (dist < 120 && time > enemy.lastAttackTime + 2000) {
+      // Attacco Lunge
+      enemy.lastAttackTime = time;
+      this.physics.velocityFromRotation(angle, 400, enemy.body.velocity);
+      enemy.setTint(0xffaa00);
+      this.time.delayedCall(300, () => enemy.clearTint());
+    } else if (dist > 30) {
+      this.physics.moveToObject(enemy, this.player, 120);
+    }
+  }
+
+  private updateMagoAI(enemy: any, dist: number, angle: number, time: number) {
+    // Il mago cerca di stare a distanza (tra 200 e 400 pixel)
+    if (dist < 200) {
+      // Scappa
+      this.physics.velocityFromRotation(angle, -150, enemy.body.velocity);
+    } else if (dist > 400) {
+      // Insegue
+      this.physics.moveToObject(enemy, this.player, 100);
+    } else {
+      // Distanza giusta: spara se pronto
+      enemy.body.setVelocity(0);
+      if (time > enemy.lastAttackTime + 3000) {
+        enemy.lastAttackTime = time;
+        this.shootEnemyBullet(enemy, angle);
+      }
+    }
+  }
+
+  private updateDemonAI(enemy: any, dist: number, angle: number, time: number) {
+    // Il demone carica se è a media distanza
+    if (enemy.state === "CHARGE") {
+      // Sta già caricando, non cambiare velocità finché non finisce
+      return;
+    }
+
+    if (dist > 150 && dist < 400 && time > enemy.lastAttackTime + 4000) {
+      // Inizia carica
+      enemy.state = "CHARGE";
+      enemy.lastAttackTime = time;
+      enemy.setTint(0xff00ff);
+      this.physics.velocityFromRotation(angle, 500, enemy.body.velocity);
+      
+      this.time.delayedCall(1000, () => {
+        enemy.state = "CHASE";
+        enemy.clearTint();
+      });
+    } else {
+      this.physics.moveToObject(enemy, this.player, 80);
+    }
+  }
+
+  private shootEnemyBullet(enemy: any, angle: number) {
+    const bullet = this.enemyBullets.create(enemy.x, enemy.y, "phaser") as any;
+    bullet.setScale(0.08);
+    bullet.setTint(0x00ffff);
+    if (this.hudCamera) this.hudCamera.ignore(bullet);
+    this.physics.velocityFromRotation(angle, 300, bullet.body.velocity);
+    bullet.setRotation(angle);
   }
 
   update(time: number, delta: number): void {
     if (this.isGameOver || this.isPaused) return;
-    this.updateLightEffect();
+
     const currentSpeed = this.isSprinting ? this.sprintSpeed : this.normalSpeed;
     const body = this.player.body as Phaser.Physics.Arcade.Body;
 
@@ -473,11 +525,12 @@ export default class GamePlay extends Phaser.Scene {
     if (isAttacking) {
       body.setVelocity(0);
     } else {
-      let dx = 0; let dy = 0;
-      if (this.cursors.left.isDown  || this.wasd.left.isDown)  dx = -1;
+      let dx = 0;
+      let dy = 0;
+      if (this.cursors.left.isDown || this.wasd.left.isDown) dx = -1;
       else if (this.cursors.right.isDown || this.wasd.right.isDown) dx = 1;
-      if (this.cursors.up.isDown   || this.wasd.up.isDown)   dy = -1;
-      else if (this.cursors.down.isDown  || this.wasd.down.isDown)  dy = 1;
+      if (this.cursors.up.isDown || this.wasd.up.isDown) dy = -1;
+      else if (this.cursors.down.isDown || this.wasd.down.isDown) dy = 1;
 
       if (dx !== 0 || dy !== 0) {
         body.setVelocity(dx * currentSpeed, dy * currentSpeed);
@@ -496,9 +549,7 @@ export default class GamePlay extends Phaser.Scene {
     }
 
     this.enemies.getChildren().forEach((enemy: any) => {
-      this.physics.moveToObject(enemy, this.player, 100);
-      enemy.setFlipX(enemy.body.velocity.x < 0);
-      this.updateEnemyHealthBar(enemy);
+      this.updateEnemyAI(enemy, time);
     });
   }
 
