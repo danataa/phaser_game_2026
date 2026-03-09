@@ -41,6 +41,9 @@ export default class GamePlay extends Phaser.Scene {
     this.configuraCamera();
     this.configuraInput();
     this.creaQuadratoInterattivo(200, 200);
+
+    // Avvia la scena HUD
+    this.scene.launch("Hud");
   }
 
   update(time: number, delta: number): void {
@@ -123,29 +126,45 @@ export default class GamePlay extends Phaser.Scene {
     if (this._layerCespugli) {
       this.physics.add.collider(this._giocatore, this._layerCespugli);
     }
+    
+    // Emetti evento iniziale per l'HUD
+    this.time.delayedCall(100, () => {
+      this.events.emit('classe-cambiata', 'Cavaliere');
+      this.events.emit('vita-cambiata', this._giocatore.vita);
+    });
   }
 
   private cambiaClasse(tipo: 'cavaliere' | 'alchimista' | 'chierico'): void {
     if (!this._giocatore) return;
     const x = this._giocatore.x;
     const y = this._giocatore.y;
+    const vitaPrecedente = this._giocatore.vita;
 
     this._giocatore.destroy();
+
+    let nomeClasse = '';
 
     switch (tipo) {
       case 'cavaliere':
         this._giocatore = new Cavaliere({ scene: this, x, y });
+        nomeClasse = 'Cavaliere';
         console.log("✅ Cavaliere");
         break;
       case 'alchimista':
         this._giocatore = new Alchimista({ scene: this, x, y });
+        nomeClasse = 'Alchimista';
         console.log("✅ Alchimista");
         break;
       case 'chierico':
         this._giocatore = new Chierico({ scene: this, x, y });
+        nomeClasse = 'Chierico';
         console.log("✅ Chierico");
         break;
     }
+
+    // Manteniamo la vita precedente o resettiamo? 
+    // Per ora resettiamo perché è una nuova istanza, ma potremmo volerla passare al costruttore.
+    // Se volessimo mantenerla: (this._giocatore as any)._vita = vitaPrecedente; (ma è protected)
 
     if (this._layerCespugli) {
       this.physics.add.collider(this._giocatore, this._layerCespugli);
@@ -155,6 +174,9 @@ export default class GamePlay extends Phaser.Scene {
     if (this._oggettoInterattivo) {
       this.ricreaColliderQuadrato();
     }
+
+    this.events.emit('classe-cambiata', nomeClasse);
+    this.events.emit('vita-cambiata', this._giocatore.vita);
   }
 
   // ================================
@@ -219,15 +241,16 @@ export default class GamePlay extends Phaser.Scene {
     this.physics.add.overlap(
       this._giocatore,
       this._oggettoInterattivo,
-      this.quandoSovrapposto as any,
+      (player, object) => this.quandoSovrapposto(player, object),
       undefined,
       this
     );
 
-    // Se il giocatore ha proiettili (es. Alchimista)
-    if ('proiettili' in this._giocatore && (this._giocatore as any).proiettili) {
+    // Se il giocatore è un Alchimista, gestiamo i proiettili
+    if (this._giocatore instanceof Alchimista) {
+      const alchimista = this._giocatore as Alchimista;
       this.physics.add.collider(
-        (this._giocatore as any).proiettili,
+        alchimista.proiettili,
         this._oggettoInterattivo,
         (proiettile: any, oggetto: any) => {
           proiettile.destroy();
@@ -239,7 +262,7 @@ export default class GamePlay extends Phaser.Scene {
     }
   }
 
-  private quandoSovrapposto(_player: any, object2: any): void {
+  private quandoSovrapposto(player: any, object2: any): void {
     this._oggettoInterattivo = object2;
   }
 
