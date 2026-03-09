@@ -19,13 +19,13 @@ export default class Intro extends Phaser.Scene {
 
   create() {
     // Background Music
-    if (!this.sound.get("music")) {
+    /* if (!this.sound.get("music")) {
       this.bgMusic = this.sound.add("music", { loop: true, volume: 0.5 });
       this.bgMusic.play();
     } else {
       this.bgMusic = this.sound.get("music");
       if (!this.bgMusic.isPlaying) this.bgMusic.play();
-    }
+    } */
 
     // Pulsante Start
     const startButton = this.add.text(this.cameras.main.centerX, 200, "START", {
