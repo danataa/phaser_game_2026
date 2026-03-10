@@ -4,6 +4,7 @@ export default class GamePlay extends Phaser.Scene {
   private player: Phaser.Physics.Arcade.Sprite & { hp: number; isInvulnerable: boolean };
   private enemies: Phaser.Physics.Arcade.Group;
   private bullets: Phaser.Physics.Arcade.Group;
+  private enemyBullets: Phaser.Physics.Arcade.Group;
   private cursors: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd: Phaser.Types.Input.Keyboard.CursorKeys;
   private tabKey: Phaser.Input.Keyboard.Key;
@@ -64,6 +65,7 @@ export default class GamePlay extends Phaser.Scene {
 
     // Gruppi
     this.bullets = this.physics.add.group();
+    this.enemyBullets = this.physics.add.group();
     this.enemies = this.physics.add.group();
 
     // Player
@@ -139,10 +141,31 @@ export default class GamePlay extends Phaser.Scene {
 
     this.physics.add.collider(this.enemies, collideLayer);
     this.physics.add.collider(this.bullets, collideLayer, (b: any) => b.destroy());
+    this.physics.add.collider(this.enemyBullets, collideLayer, (b: any) => b.destroy());
     
     this.physics.add.overlap(this.bullets, this.enemies, (b: any, e: any) => {
       b.destroy();
       this.damageEnemy(e);
+    });
+
+    this.physics.add.overlap(this.enemyBullets, this.player, (p: any, b: any) => {
+      if (!this.player.isInvulnerable && !this.isGameOver) {
+        b.destroy();
+        this.player.hp -= 10;
+        this.player.isInvulnerable = true;
+        this.player.setTint(0xff0000);
+        this.updatePlayerHealthBar();
+        if (this.player.hp <= 0) this.showEndScreen(false);
+        else {
+          this.time.delayedCall(1000, () => {
+            this.player.isInvulnerable = false;
+            this.player.clearTint();
+          });
+        }
+      } else if (this.isGameOver || this.player.isInvulnerable) {
+        // Se già colpito o game over, proiettile passa o sparisce senza danni
+        b.destroy();
+      }
     });
 
     this.physics.add.collider(this.player, this.enemies, (p, e) => {
@@ -411,9 +434,56 @@ export default class GamePlay extends Phaser.Scene {
     }
 
     this.enemies.getChildren().forEach((enemy: any) => {
-      this.physics.moveToObject(enemy, this.player, 100);
-      enemy.setFlipX(enemy.body.velocity.x < 0);
+      const distance = Phaser.Math.Distance.Between(enemy.x, enemy.y, this.player.x, this.player.y);
+      
+      // IA "Smart": mantiene distanza e si muove in modo intelligente
+      if (distance > 400) {
+        // Troppo lontano, si avvicina
+        this.physics.moveToObject(enemy, this.player, 120);
+      } else if (distance < 250) {
+        // Troppo vicino, scappa via dal player
+        const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, enemy.x, enemy.y);
+        enemy.body.velocity.set(Math.cos(angle) * 150, Math.sin(angle) * 150);
+      } else {
+        // Distanza ottimale (250-400), si muove un po' lateralmente (strafing)
+        const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, enemy.x, enemy.y);
+        // Aggiunge un movimento perpendicolare (strafing)
+        const strafeAngle = angle + Math.PI/2;
+        enemy.body.velocity.set(Math.cos(strafeAngle) * 50, Math.sin(strafeAngle) * 50);
+      }
+
+      // Spara se pronto e nel raggio d'azione
+      if (!enemy.nextFire) enemy.nextFire = 0;
+      if (time > enemy.nextFire && distance < 600) {
+        this.enemyShoot(enemy);
+        enemy.nextFire = time + Phaser.Math.Between(1500, 3000);
+      }
+
+      enemy.setFlipX(this.player.x < enemy.x); // Guarda sempre il player
       this.updateEnemyHealthBar(enemy);
+    });
+  }
+
+  enemyShoot(enemy: any) {
+    if (this.isGameOver || this.isPaused) return;
+    
+    // Spara verso il player
+    const angle = Phaser.Math.Angle.Between(enemy.x, enemy.y, this.player.x, this.player.y);
+    const bullet = this.enemyBullets.create(enemy.x, enemy.y, "phaser") as any;
+    
+    if (this.hudCamera) this.hudCamera.ignore(bullet);
+    
+    bullet.setScale(0.1);
+    bullet.setTint(0xff0000); // Proiettili nemici rossi
+    
+    const speed = 300;
+    bullet.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
+    bullet.setRotation(angle);
+    
+    // Effetto visivo "flash" sul mago quando spara
+    enemy.setTint(0xffff00);
+    this.time.delayedCall(200, () => {
+      if (enemy.active) enemy.clearTint();
     });
   }
 
