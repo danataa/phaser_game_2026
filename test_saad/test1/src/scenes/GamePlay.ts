@@ -107,6 +107,7 @@ export default class GamePlay extends Phaser.Scene {
   private merchantCoinDisplay:  Phaser.GameObjects.Text;
   private isMerchantOpen:       boolean = false;
   private merchantGreetedOnce:  boolean = false;
+  private _merchantSayTimer:    Phaser.Time.TimerEvent | null = null;
   private fKey:                 Phaser.Input.Keyboard.Key;
 
   // ── Coins & buffs ────────────────────────────────────────────────────────────
@@ -1019,7 +1020,7 @@ export default class GamePlay extends Phaser.Scene {
       fontSize: "13px", color: "#ff8800", stroke: "#000000", strokeThickness: 3,
       backgroundColor: "#00000099", padding: { x: 6, y: 4 }
     }).setOrigin(0.5);
-    const subTag = this.add.text(0, -56, "IQ: 11.111.111", {
+    const subTag = this.add.text(0, -56, "Mercante dell'Abisso", {
       fontSize: "9px", color: "#cc5500", stroke: "#000000", strokeThickness: 2
     }).setOrigin(0.5);
 
@@ -1085,12 +1086,12 @@ export default class GamePlay extends Phaser.Scene {
     portrait.fillTriangle(ppx - 30, ppy + 14, ppx + 30, ppy + 14, ppx + 40, ppy + 84);
     portrait.fillTriangle(ppx - 30, ppy + 14, ppx - 40, ppy + 84, ppx + 40, ppy + 84);
     portrait.lineStyle(3, 0x7700cc, 1);
-    portrait.lineBetween(ppx + 36, ppy + 10, ppx + 36, ppx + 90);
+    portrait.lineBetween(ppx + 36, ppy + 10, ppx + 36, ppy + 90);
     portrait.fillStyle(0xaa00ff, 0.92); portrait.fillCircle(ppx + 36, ppy + 5, 10);
     portrait.fillStyle(0xeeddff, 1);    portrait.fillCircle(ppx + 36, ppy + 5, 5);
-    const portName  = this.add.text(pX + 90, H / 2 + 92, "MEPHISTO",     { fontSize: "12px", color: "#ff8800", stroke: "#000000", strokeThickness: 2 }).setOrigin(0.5);
-    const portIQ    = this.add.text(pX + 90, H / 2 + 108, "IQ: 11.111.111", { fontSize: "10px", color: "#666666" }).setOrigin(0.5);
-    const portSubtitle = this.add.text(pX + 90, H / 2 + 122, "Demone commerciante", { fontSize: "9px", color: "#440033" }).setOrigin(0.5);
+    const portName     = this.add.text(pX + 90, H / 2 + 92, "MEPHISTO",            { fontSize: "12px", color: "#ff8800", stroke: "#000000", strokeThickness: 2 }).setOrigin(0.5);
+    const portIQ       = this.add.text(pX + 90, H / 2 + 108, "Demone di 1° Ordine", { fontSize: "10px", color: "#664444" }).setOrigin(0.5);
+    const portSubtitle = this.add.text(pX + 90, H / 2 + 122, "Commerciante • Profeta • Genio", { fontSize: "8px", color: "#440033" }).setOrigin(0.5);
 
     // ── Message area ───────────────────────────────────────────────────────
     const msgBg = this.add.rectangle(pX + 400, pY + 138, 362, 162, 0x0c001e, 1).setOrigin(0.5);
@@ -1208,11 +1209,11 @@ export default class GamePlay extends Phaser.Scene {
             this.playerCoins += COIN_POTION_HP_COST;
             if (this.coinText) this.coinText.setText(`🪙  ${this.playerCoins}`);
             this.merchantCoinDisplay.setText(`🪙  ${this.playerCoins} monete`);
-            this.merchantSay("Sei già a piena salute. L'avidità è un peccato capitale. Anche qui nell'Inferno. I soldi ti sono stati restituiti... questa volta.");
+            this.merchantSay("Sei già a piena salute. L'avidità è un peccato capitale. Anche qui nell'Inferno. Le monete ti sono state restituite... questa volta.");
           } else {
             this.player.hp = Math.min(PLAYER_MAX_HP, this.player.hp + 50);
             this.updatePlayerHealthBar();
-            this.merchantSay("Ah, il pragmatismo della sopravvivenza. +50 HP. Aristotele ne sarebbe disgustato. Io sono invece lieto di fare affari.");
+            this.merchantSay("Ah, il pragmatismo della sopravvivenza. +50 HP. Aristotele ne sarebbe disgustato. Io sono lieto di fare affari.");
           }
         },
         "Non hai abbastanza monete. Prova a uccidere qualcosa... o a supplicare. Entrambe le opzioni mi divertono tremendamente."
@@ -1225,7 +1226,7 @@ export default class GamePlay extends Phaser.Scene {
         () => {
           this.damageBuff = true;
           this.damageBuffExpiry = this.time.now + BUFF_DURATION_MS;
-          this.merchantSay(`Danno ×${DAMAGE_BUFF_MULT} per ${BUFF_DURATION_MS / 1000}s. Con questo potere potresti rovesciare un regno. O almeno un demone di livello medio. Probabilmente.`);
+          this.merchantSay(`Danno ×${DAMAGE_BUFF_MULT} per ${BUFF_DURATION_MS / 1000}s. Con questo potresti rovesciare un regno. O almeno un demone di medio livello. Probabilmente entrambi.`);
         },
         "Monete insufficienti. L'universo non funziona a credito. Almeno non il mio angolo di esso."
       )
@@ -1237,7 +1238,7 @@ export default class GamePlay extends Phaser.Scene {
         () => {
           this.speedBuff = true;
           this.speedBuffExpiry = this.time.now + BUFF_DURATION_MS;
-          this.merchantSay(`Velocità ×${SPEED_BUFF_MULT} per ${BUFF_DURATION_MS / 1000}s. Corri pure... ma ricorda: non si scappa dal destino. Solo dalla seconda ondata. E dalla terza.`);
+          this.merchantSay(`Velocità ×${SPEED_BUFF_MULT} per ${BUFF_DURATION_MS / 1000}s. Corri pure — ma ricorda: non si scappa dal destino. Solo dalla seconda ondata. E dalla terza. Forse dalla quarta.`);
         },
         "Povero alchimista... la velocità costa. Come tutto ciò che vale la pena avere nell'Inferno, tra cui la tua anima."
       )
@@ -1248,15 +1249,20 @@ export default class GamePlay extends Phaser.Scene {
       this.merchantSay(this.getMephistoRevisit());
     });
 
-    this.merchantSay("Prezzi equi per un demonio. O così affermano i demoni più squattrinati della città.");
+    this.merchantSay("Prezzi onesti per un demonio di primo ordine. O così dicono i clienti meno squattrinati.");
   }
 
   private merchantSay(text: string) {
+    // Cancel any running typewriter to prevent stacking
+    if (this._merchantSayTimer) {
+      this._merchantSayTimer.remove(false);
+      this._merchantSayTimer = null;
+    }
     this.merchantMsgText.setText("");
     let i = 0;
     const chars = text.split("");
-    this.time.addEvent({
-      delay: 22, repeat: chars.length - 1,
+    this._merchantSayTimer = this.time.addEvent({
+      delay: 20, repeat: chars.length - 1,
       callback: () => {
         if (this.merchantMsgText && chars[i] !== undefined)
           this.merchantMsgText.setText(this.merchantMsgText.text + chars[i++]);
@@ -1266,42 +1272,66 @@ export default class GamePlay extends Phaser.Scene {
 
   private getMephistoGreeting(): string {
     if (this.player.hp < PLAYER_MAX_HP * 0.3) {
-      return `Ah, finalmente! Ti aspettavo — e devo dire che il tuo aspetto deteriorato era esattamente previsto. Con ${this.player.hp} HP residui e la wave ${this.waveNumber} in corso, matematicamente avresti dovuto morire 3.7 secondi fa. Cosa posso fare per te?`;
+      return `Ah. Sei arrivato. Con ${this.player.hp} punti vita, direi — e lo dico con tutto il rispetto che mi è possibile — che sei un disastro ambulante. Fortunatamente per te, Mephisto è presente.`;
     }
     if (this.waveNumber >= 3) {
-      return `Eccolo! L'alchimista sopravvissuto alla wave ${this.waveNumber}. Notevole. Statisticamente, il 94.7% di chi arriva qui è già morto. Benvenuto nel 5.3% più inutile della sopravvivenza. Come posso aiutarti?`;
+      return `Wave ${this.waveNumber} e ancora in piedi. Interessante. La maggior parte muore prima. Non che mi importi, ma lo registro. Benvenuto. Sono Mephisto — presumo tu sappia già chi sono.`;
     }
-    return "Benvenuto, alchimista. Ti aspettavo — non per cortesia, ovviamente, ma perché conosco ogni tua mossa con precisione assoluta. Sono Mephisto. IQ: 11.111.111. Demone, commerciante... e tuo unico alleato in questo inferno. Cosa cerchi?";
+    return "Finalmente qualcuno degno di fermarsi. Sono Mephisto — ma questo lo sai già, chiunque valga qualcosa lo sa. Commerciante, visionario, unico essere in queste catacombe con un minimo di gusto. Cosa posso fare per te?";
   }
 
   private getMephistoRevisit(): string {
     const opts = [
-      `Tornato già? Il tuo tasso di dipendenza supera l'87% della media. Come posso aiutarti?`,
-      "Di ritorno dal fronte. Sapevo che saresti tornato, ovviamente. Come il pendolo della Rivoluzione: inesorabile.",
-      `Wave ${this.waveNumber}, ${this.enemiesKilled} nemici uccisi... ancora vivo. Statisticamente improbabile. Complimenti.`,
-      "Ah, il cliente abituale. Ogni tua scelta è già scritta nel grande libro del cosmo. Ma fai pure finta di decidere tu.",
-      "Bentornato. Ho già preparato ciò di cui hai bisogno. Non ti chiedo come faccio a saperlo — perché l'IQ è 11.111.111.",
+      "Di nuovo tu. Come previsto. Letteralmente previsto — non è una metafora.",
+      "Sapevo che saresti tornato prima ancora che tu lo sapessi. Uno dei vantaggi dell'essere me.",
+      "Ah, il mio cliente preferito. Non perché mi sia simpatico — semplicemente perché sei l'unico.",
+      "Tornato? Non ti biasimo. Se potessi conversare con me stesso, lo farei in continuazione.",
+      `Wave ${this.waveNumber}, ${this.enemiesKilled} nemici. Ancora vivo. Devo ammettere che cominci a sorprendermi. Quasi.`,
+      "Puntuale come la morte. E in questo posto, è un complimento.",
+      "Ti aspettavo. Come sempre. È una delle poche soddisfazioni che mi rimangono in questo lavoro.",
     ];
     return opts[Phaser.Math.Between(0, opts.length - 1)];
   }
 
   private getMephistoAdvice(): string {
     const hp = this.player.hp, w = this.waveNumber, k = this.enemiesKilled;
-    if (hp < 30) return `${hp} HP è un problema matematico, non filosofico. Compra una pozione ADESSO. Non è un suggerimento — è un imperativo categorico. Kant sarebbe d'accordo. Anche Napoleone, probabilmente.`;
-    if (hp > 80 && this.playerCoins > 40) return `Hai ${this.playerCoins} monete e buona salute. Un lusso raro nell'Inferno. Investi in un buff — la fortuna sorride ai preparati. Io sorrido solo quando qualcuno muore. Ma quello è un altro discorso.`;
-    if (w >= 4) return `Wave ${w}: i demoni si moltiplicano come la corruzione a Versailles. Il Buff Danno moltiplicherebbe ogni tuo colpo ×${DAMAGE_BUFF_MULT}. Un'efficienza bellica che Sun Tzu avrebbe apprezzato.`;
-    if (k > 25) return `${k} nemici eliminati. Impressionante. Il Diavolo ti osserva con una miscela di irritazione e rispetto. Sfrutta il momentum — rafforza l'attacco prima che l'irritazione prevalga.`;
-    return "Strategia ottimale: mantieniti in movimento, usa lo sprint con parsimonia, e ricorda che ogni tua mossa è prevedibile. Per me, intendo. Per i demoni sei ancora un mistero. È il tuo unico vantaggio — usalo.";
+    const s = this._randomTangent();
+    if (hp < 30) return `${hp} HP. Non è un consiglio, è un'urgenza: compra una pozione adesso. Prima di finire questa frase. Muoviti.${s}`;
+    if (hp > 80 && this.playerCoins > 40) return `Hai ${this.playerCoins} monete e buona salute — una rarità assoluta qui sotto. Un buff ora potrebbe farti passare da "sopravvissuto fortunato" a "minaccia credibile". Considera il Danno.${s}`;
+    if (w >= 4) return `Wave ${w}: i demoni si moltiplicano come le menzogne a corte. Il Buff Danno trasformerebbe ogni tuo colpo in qualcosa di cui vergognarsi. I nemici, intendo.${s}`;
+    if (k > 25) return `${k} nemici. Il Diavolo ti guarda con irritazione crescente. Io ti guardo con curiosità — che è molto di più, venendo da me.${s}`;
+    return `Muoviti. Colpisci. Non morire. Sembra banale, eppure il 94% delle persone che entrano qui fallisce almeno uno di questi tre punti.${s}`;
   }
 
   private getMephistoLore(topic: string): string {
+    const s = this._randomTangent();
     const lore: Record<string, string> = {
-      pact:      "Il Re di Francia ha stretto un patto col Diavolo per sedare la Rivoluzione. Errore commesso dal 74.2% dei regnanti disperati nella storia umana. Il prezzo? L'apertura dei cancelli dell'Inferno. L'ironia? Ha dimenticato le clausole sul rimborso.",
-      catacombs: "Le catacombe di Parigi ospitano 6 milioni di morti. Ora ne ospitano qualcosa di molto peggio. Ti trovi a 47 metri sotto la città più 'illuminata' d'Europa. L'Illuminismo, ahimè, si ferma alla superficie.",
-      king:      "Luigi XVI: intelligenza mediocre, ambizioni cosmiche. Ha scelto il potere demonico sull'umiltà politica. La storia lo giudicherà con la ghigliottina. L'Inferno lo ha già giudicato: colpevole di idiozia di terzo grado.",
-      hell:      "I cancelli dell'Inferno hanno tre sigilli e tre guardiani. I demoni che stai affrontando sono servitori minori. I guardiani hanno una potenza dell'ordine di 10^6 volte superiore. Stai prendendo appunti, vero?",
-      mask:      "La tua maschera è un artefatto alchemico del XIII secolo, perduto durante l'Inquisizione. Permette la mutazione della forma — ogni maschera è un'identità, ogni identità un potere. Chi te l'ha inviata? Nemmeno il mio IQ conosce la risposta. Questo mi disturba.",
+      pact:      `Il Re ha venduto l'anima al Diavolo per sedare la Rivoluzione. Errore classico del dispotismo disperato. Il prezzo era l'apertura dei cancelli. Il Re non ha letto le clausole — nessuno le legge mai.${s}`,
+      catacombs: `Sei a 47 metri sotto Parigi. Sei milioni di morti riposano qui — o riposavano, prima del Diavolo. Ora è più affollato del solito e il vicinato è notevolmente peggiorato.${s}`,
+      king:      `Luigi XVI: onesto, mediocre, disperato. Ha scelto il potere demonico perché non sapeva come fare altrimenti. La storia lo giudica con la ghigliottina. L'Inferno ha già emesso un verdetto molto più definitivo.${s}`,
+      hell:      `I cancelli hanno tre sigilli, tre guardiani. I demoni che stai affrontando sono servitori — fastidiosi ma irrilevanti nel quadro generale. I guardiani sono un'altra categoria. Non correre verso di loro.${s}`,
+      mask:      `La tua maschera è un artefatto alchemico medievale, perduto durante l'Inquisizione. Ogni forma è un potere diverso. Chi te l'ha inviata? Non lo so. E questo — devo ammettere — mi disturba profondamente.${s}`,
     };
-    return lore[topic] ?? "Domanda interessante. La risposta richiederebbe 47 minuti. Tu hai circa 12 secondi prima che un demone ti raggiunga. Torna con più tempo.";
+    return lore[topic] ?? `Domanda interessante. La risposta richiederebbe più tempo di quanto tu ne abbia. Ma apprezzo l'audacia della domanda.${s}`;
+  }
+
+  /** Appends a random non-sequitur (~25% chance) */
+  private _randomTangent(): string {
+    if (Phaser.Math.Between(0, 3) !== 0) return "";
+    const lines = [
+      " ...Napoleone aveva paura dei gatti. Irrilevante, ma vero.",
+      " ...Ho contato le pietre di questo corridoio. Sono 3.847. Non so perché te lo dico.",
+      " ...A volte mi chiedo cosa significhi il colore blu. Poi mi ricordo che me ne frega poco.",
+      " ...Ho venduto una maschera simile alla tua trecento anni fa. Non finì bene per il compratore.",
+      " ...Voltaire mi insultò una volta. Ebbe il coraggio di non pentirsi. Lo rispetto ancora.",
+      " ...I pipistrelli dormono a testa in giù. Gli scheletri dormono nella terra. Tu non dormi affatto.",
+      " ...C'è una crepa nel muro dietro di te. Non è importante.",
+      " ...Avrei potuto essere un poeta. Avrei scritto cose terribili. Magnificamente terribili.",
+      " ...La fisica quantistica suggerisce che tu possa non esistere. Lo trovo stranamente rassicurante.",
+      " ...Un mio collega demone aprì un panificio nel 1347. Fallì in tre giorni. Non c'entra nulla.",
+      " ...Il numero sette è il preferito degli umani. Curioso. Non capirò mai gli umani.",
+      " ...Ho dimenticato il filo del discorso. No, eccolo. Comunque.",
+    ];
+    return lines[Phaser.Math.Between(0, lines.length - 1)];
   }
 }
