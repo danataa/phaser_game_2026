@@ -243,6 +243,18 @@ export default class GamePlay extends Phaser.Scene {
     });
 
     this.physics.add.overlap(this.bullets, this.enemies, (b: any, e: any) => {
+      // Effetto visivo all'impatto
+      const impactEffect = this.add.circle(b.x, b.y, 15, 0xffff00, 0.8).setDepth(650);
+      if (this.hudCamera) this.hudCamera.ignore(impactEffect);
+      this.tweens.add({
+        targets: impactEffect,
+        scale: 2,
+        alpha: 0,
+        duration: 150,
+        ease: "Power2",
+        onComplete: () => impactEffect.destroy()
+      });
+      
       b.destroy();
       this.damageEnemy(e);
     });
@@ -377,17 +389,80 @@ export default class GamePlay extends Phaser.Scene {
 
     if (this.currentAbility === "punch") {
       this.player.anims.play("player-attack-1", true);
+      
+      // Attacco melee direzionale con hitbox rettangolare davanti al player
+      const punchRange = 80;
+      const punchWidth = 60;
+      const punchOffsetX = this.player.x + this.lastDirection.x * punchRange / 2;
+      const punchOffsetY = this.player.y + this.lastDirection.y * punchRange / 2;
+      
+      // Effetto visivo dell'attacco pugno (cerchio temporaneo)
+      const punchEffect = this.add.circle(
+        this.player.x + this.lastDirection.x * 50,
+        this.player.y + this.lastDirection.y * 50,
+        30,
+        0xffffff,
+        0.6
+      ).setDepth(600);
+      
+      if (this.hudCamera) this.hudCamera.ignore(punchEffect);
+      
+      // Animazione dell'effetto
+      this.tweens.add({
+        targets: punchEffect,
+        scale: 1.5,
+        alpha: 0,
+        duration: 200,
+        ease: "Power2",
+        onComplete: () => punchEffect.destroy()
+      });
+      
       this.enemies.getChildren().forEach((e: any) => {
-        const distance = Phaser.Math.Distance.Between(this.player.x, this.player.y, e.x, e.y);
-        if (distance < 100) this.damageEnemy(e);
+        if (!e.active || e.isDying) return;
+        
+        // Calcola se il nemico è nella direzione dell'attacco
+        const toEnemy = new Phaser.Math.Vector2(e.x - this.player.x, e.y - this.player.y);
+        const distance = toEnemy.length();
+        
+        if (distance > punchRange) return;
+        
+        // Controlla l'angolo: il nemico deve essere davanti al player (cone attack)
+        toEnemy.normalize();
+        const dotProduct = this.lastDirection.dot(toEnemy);
+        
+        // dotProduct > 0.5 significa che il nemico è entro ~60 gradi dalla direzione di attacco
+        if (dotProduct > 0.5 && distance < punchRange) {
+          this.damageEnemy(e);
+          // Piccolo knockback
+          if (e.body) {
+            e.body.velocity.x += this.lastDirection.x * 150;
+            e.body.velocity.y += this.lastDirection.y * 150;
+          }
+        }
       });
     } else {
       this.player.anims.play("player-attack-2", true);
       const bullet = this.bullets.create(this.player.x, this.player.y, "phaser") as any;
       if (this.hudCamera) this.hudCamera.ignore(bullet);
-      bullet.setScale(0.1);
-      bullet.setVelocity(this.lastDirection.x * 500, this.lastDirection.y * 500);
+      
+      // Configura il proiettile con corpo fisico appropriato
+      bullet.setScale(0.15);
+      bullet.setTint(0x00ff88); // Verde brillante per i proiettili del player
+      
+      // Abilita il body e configura le dimensioni
+      if (bullet.body) {
+        bullet.body.setSize(20, 20);
+        bullet.setCircle(10); // Collisione circolare più precisa
+      }
+      
+      bullet.setVelocity(this.lastDirection.x * 600, this.lastDirection.y * 600);
       bullet.setRotation(angle);
+      bullet.setDepth(500);
+      
+      // Distruggi il proiettile dopo 2 secondi
+      this.time.delayedCall(2000, () => {
+        if (bullet && bullet.active) bullet.destroy();
+      });
     }
   }
 
@@ -570,7 +645,10 @@ export default class GamePlay extends Phaser.Scene {
       }
       if (this.enemiesKilled >= this.targetKills && !this.isGameOver) this.showEndScreen(true);
     } else {
+      // Nemico colpito ma non ucciso - feedback visivo
       e.setTint(0xff0000);
+      this.cameras.main.shake(80, 0.003); // Piccolo shake della camera
+      
       if (e.type === "skeleton") {
         e.play("scheletro-hurt", true);
         e.once("animationcomplete-scheletro-hurt", () => { if (e.active && !e.isDying) e.play("scheletro-run", true); });
@@ -811,6 +889,16 @@ export default class GamePlay extends Phaser.Scene {
       const speed = 300;
       bullet.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
       bullet.setRotation(angle);
+      
+      // Configura il body per collisioni migliori
+      if (bullet.body) {
+        bullet.setCircle(15);
+      }
+      
+      // Distruggi dopo 3 secondi
+      this.time.delayedCall(3000, () => {
+        if (bullet && bullet.active) bullet.destroy();
+      });
 
       enemy.setTint(0x2aa8ff);
       this.time.delayedCall(200, () => { if (enemy.active) enemy.clearTint(); });
@@ -829,6 +917,16 @@ export default class GamePlay extends Phaser.Scene {
     bullet.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
     // `arrow_1.png` e' disegnata "verso l'alto": aggiustiamo la rotazione per puntare verso il target.
     bullet.setRotation(angle + Math.PI / 2);
+    
+    // Configura il body per collisioni migliori
+    if (bullet.body) {
+      bullet.setCircle(12);
+    }
+    
+    // Distruggi dopo 3 secondi
+    this.time.delayedCall(3000, () => {
+      if (bullet && bullet.active) bullet.destroy();
+    });
     
     // Effetto visivo "flash" quando spara
     enemy.setTint(0xffff00);
