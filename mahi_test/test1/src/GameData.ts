@@ -72,7 +72,6 @@ export let GameData: gameData = {
 
     { name: "phaser", path: "assets/images/logo-phaser.png" },
     { name: "arrow_1", path: "assets/images/arrow_1.png" },
-    { name: "vignette-mask", path: "assets/images/vignette_mask.png" },
     { name: "freedoom", path: "assets/images/freedoom.png" },
     { name: "thelucasart", path: "assets/images/thelucasart.png" },
     { name: "intro-bg", path: "assets/images/intro-bg.jpg" },
