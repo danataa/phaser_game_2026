@@ -9,6 +9,8 @@ export default class WebFontFile extends Phaser.Loader.File {
      */
     private fontNames: any;
     private service: any;
+
+    /** Creates a Loader file that loads web fonts via WebFontLoader. */
     constructor(loader: any, fontNames: any, service = 'google') {
         super(loader, {
             type: 'webfont',
@@ -19,6 +21,7 @@ export default class WebFontFile extends Phaser.Loader.File {
         this.service = service
     }
 
+    /** Starts loading fonts and notifies the Phaser loader when ready. */
     load() {
         const config = {
             active: () => {
