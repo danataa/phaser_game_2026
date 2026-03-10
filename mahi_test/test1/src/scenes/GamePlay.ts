@@ -63,7 +63,8 @@ export default class GamePlay extends Phaser.Scene {
   private darknessOverlay: Phaser.GameObjects.Rectangle;
   private lightMaskGraphics: Phaser.GameObjects.Graphics;
   private lightRadiusPx: number = 240;
-  private darknessAlpha: number = 0.85;
+  private fogFeatherPx: number = 180;
+  private darknessAlpha: number = 1;
 
   /** Scene constructor (key: GamePlay). */
   constructor() {
@@ -504,7 +505,8 @@ export default class GamePlay extends Phaser.Scene {
       .setScrollFactor(0)
       .setDepth(1400);
 
-    this.darknessOverlay.setBlendMode(Phaser.BlendModes.MULTIPLY);
+    // For full fog-of-war we want a solid black occlusion (not a multiply darken).
+    this.darknessOverlay.setBlendMode(Phaser.BlendModes.NORMAL);
 
     // Mask graphics live in screen space (scrollFactor 0). We invert alpha to create a "hole".
     this.lightMaskGraphics = this.add.graphics().setScrollFactor(0).setDepth(1401);
@@ -518,6 +520,8 @@ export default class GamePlay extends Phaser.Scene {
       this.hudCamera.ignore(this.darknessOverlay);
       this.hudCamera.ignore(this.lightMaskGraphics);
     }
+
+    // No camera post-processing: this fog-of-war is implemented purely via overlay + mask.
   }
 
   /** Updates the circular mask position so it stays centered on the player every frame. */
@@ -531,7 +535,19 @@ export default class GamePlay extends Phaser.Scene {
 
     this.lightMaskGraphics.clear();
     this.lightMaskGraphics.fillStyle(0xffffff, 1);
+    // Solid clear circle.
     this.lightMaskGraphics.fillCircle(sx, sy, this.lightRadiusPx);
+
+    // Feather ring: gradually reduce mask alpha towards the edge so the overlay fades in.
+    // This avoids camera post-fx while still giving a vignette-like falloff.
+    const steps = 10;
+    const stepW = this.fogFeatherPx / steps;
+    for (let i = 1; i <= steps; i++) {
+      const t = i / steps;
+      const a = 1 - t;
+      this.lightMaskGraphics.lineStyle(stepW + 1, 0xffffff, a);
+      this.lightMaskGraphics.strokeCircle(sx, sy, this.lightRadiusPx + i * stepW);
+    }
 
     this.darknessOverlay.setAlpha(this.darknessAlpha);
   }
