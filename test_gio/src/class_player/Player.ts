@@ -2,6 +2,9 @@ import GamePlay from "../scenes/GamePlay";
 
 export default class Player extends Phaser.Physics.Arcade.Sprite {
 
+  // ================================
+  // ATTRIBUTI
+  // ================================
   protected _scena: GamePlay;
   protected _vita: number = 100;
   protected _vitaMassima: number = 100;
@@ -12,6 +15,9 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
   protected _direzione: string = 'giu';
   protected _invulnerabile: boolean = false;
 
+  // ================================
+  // COSTRUTTORE
+  // ================================
   constructor(params: { scene: GamePlay; x: number; y: number }) {
     super(params.scene, params.x, params.y, "player");
 
@@ -28,19 +34,28 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     );
   }
 
+  // ================================
+  // CREATE
+  // ================================
   create(): void {
-    // Per animazioni
+    // Riservato per animazioni nelle sottoclassi
   }
 
+  // ================================
+  // UPDATE — chiamato ogni frame da GamePlay
+  // ================================
   update(time: number, delta: number): void {
     this.gestisciMovimento();
-    this.aggiornaAnimazione();
 
+    // SPACE per testare il danno
     if (Phaser.Input.Keyboard.JustDown(this._cursori.space)) {
       this.subisciDanno(10);
     }
   }
 
+  // ================================
+  // MOVIMENTO
+  // ================================
   private gestisciMovimento(): void {
     this.setVelocity(0);
     this._inMovimento = false;
@@ -65,29 +80,15 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
       this._direzione = 'giu';
     }
 
+    // Normalizziamo la velocità in diagonale
     if (this._inMovimento && this.body.velocity.x !== 0 && this.body.velocity.y !== 0) {
       this.body.velocity.normalize().scale(this._velocita);
     }
   }
 
-  private aggiornaAnimazione(): void {
-    if (this._inMovimento) {
-      switch (this._direzione) {
-        case 'sinistra': this.play('cammina_sinistra', true); break;
-        case 'destra':   this.play('cammina_destra', true); break;
-        case 'su':       this.play('cammina_su', true); break;
-        case 'giu':      this.play('cammina_giu', true); break;
-      }
-    } else {
-      switch (this._direzione) {
-        case 'sinistra': this.play('idle_sinistra', true); break;
-        case 'destra':   this.play('idle_destra', true); break;
-        case 'su':       this.play('idle_su', true); break;
-        case 'giu':      this.play('idle_giu', true); break;
-      }
-    }
-  }
-
+  // ================================
+  // DANNO E CURA
+  // ================================
   public subisciDanno(amount: number): void {
     if (this._invulnerabile) return;
     this._vita = Math.max(this._vita - amount, 0);
@@ -101,6 +102,9 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this._scena.events.emit('vita-cambiata', this._vita);
   }
 
+  // ================================
+  // MORTE
+  // ================================
   private muori(): void {
     console.log("💀 Il giocatore è morto!");
     this.setVelocity(0);
@@ -109,6 +113,9 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this._scena.events.emit('giocatore-morto');
   }
 
+  // ================================
+  // GETTER E SETTER
+  // ================================
   public get vita(): number { return this._vita; }
   public get vitaMassima(): number { return this._vitaMassima; }
   public get velocita(): number { return this._velocita; }

@@ -26,14 +26,17 @@ export let GameData: gameData = {
 
   // Spritesheet del player: immagine con 50 frame, ogni frame 82x70px
   spritesheets: [
-    { name: "player", path: "assets/images/player.png", width: 82, height: 70, frames: 50 },
+   { name: "player", path: "assets/images/player.png", width: 82, height: 70, frames: 50 },
+{ name: "knight_walk", path: "assets/spritesheets/knight_pack/Knight_1/Walk.png", width: 114, height: 128, frames: 9 },
+{ name: "knight_idle", path: "assets/spritesheets/knight_pack/Knight_1/Idle.png", width: 128, height: 128, frames: 4 },
+{ name: "knight_dead", path: "assets/spritesheets/knight_pack/Knight_1/Dead.png", width: 128, height: 128, frames: 6 },
   ],
 
   // Immagini statiche utilizzate nelle varie scene
   images: [
     { name: "phaser", path: "assets/images/logo-phaser.png" },
     { name: "freedoom", path: "assets/images/freedoom.png" },
-    { name: "thelucasart", path: "assets/images/thelucasart.png" },
+    { name: "player", path: "assets/spritesheets/knight_pack/Knight_1/Protect.png" },
     { name: "intro-bg", path: "assets/images/intro-bg.jpg" },
     { name: "bg-1", path: "assets/images/bg/1.png" },
     { name: "bg-2", path: "assets/images/bg/2.png" },

@@ -9,13 +9,12 @@ export default class GamePlay extends Phaser.Scene {
   private wasd: Phaser.Types.Input.Keyboard.CursorKeys;
   private tabKey: Phaser.Input.Keyboard.Key;
   private shiftKey: Phaser.Input.Keyboard.Key;
-  
+
   // UI
   private playerHealthBar: Phaser.GameObjects.Graphics;
   private abilityText: Phaser.GameObjects.Text;
   private sprintText: Phaser.GameObjects.Text;
   private objectiveText: Phaser.GameObjects.Text;
-  private hudElements: Phaser.GameObjects.Group;
   private hudCamera: Phaser.Cameras.Scene2D.Camera;
 
   // Game Logic
@@ -24,25 +23,22 @@ export default class GamePlay extends Phaser.Scene {
   private canSprint: boolean = true;
   private normalSpeed: number = 200;
   private sprintSpeed: number = 400;
-  
+
   private enemiesKilled: number = 0;
   private targetKills: number = 15;
   private isGameOver: boolean = false;
   private isPaused: boolean = false;
   private spawnEvent: Phaser.Time.TimerEvent;
   private bgMusic: Phaser.Sound.BaseSound;
-  
-  // UI
+
+  // Pause
   private pauseOverlay: Phaser.GameObjects.Container;
-  
-  // Direzione per lo sparo
-  private lastDirection: Phaser.Math.Vector2 = new Phaser.Math.Vector2(1, 0); // Default destra
+
+  private lastDirection: Phaser.Math.Vector2 = new Phaser.Math.Vector2(1, 0);
   private escKey: Phaser.Input.Keyboard.Key;
 
   constructor() {
-    super({
-      key: "GamePlay",
-    });
+    super({ key: "GamePlay" });
   }
 
   create() {
@@ -55,54 +51,45 @@ export default class GamePlay extends Phaser.Scene {
     const tileset = map.addTilesetImage("mainlevbuild", "tileset_0");
     const floor = map.createLayer("floor", tileset, 0, 0);
     const collideLayer = map.createLayer("wall", tileset, 0, 0);
-    
-    // Ingrandiamo il tilemap
+
     floor.setScale(2);
     collideLayer.setScale(2);
     collideLayer.setCollisionByProperty({ collide: true });
-    
+
     this.physics.world.setBounds(0, 0, map.widthInPixels * 2, map.heightInPixels * 2);
 
-    // Gruppi
     this.bullets = this.physics.add.group();
     this.enemyBullets = this.physics.add.group();
     this.enemies = this.physics.add.group();
 
-    // Player
     this.player = this.physics.add.sprite(200, 200, "player") as any;
     this.player.hp = 100;
     this.player.isInvulnerable = false;
     this.player.setCollideWorldBounds(true);
-    this.player.setBodySize(30, 30); // Hitbox più piccola e centrata
-    this.player.setOffset(26, 35); // Centrato sui piedi/base dello sprite 82x70
+    this.player.setBodySize(30, 30);
+    this.player.setOffset(26, 35);
     this.physics.add.collider(this.player, collideLayer);
 
     this.setupUI();
     this.setupPlayerAnims();
     this.setupPauseUI();
-    
-    // Background music (already playing from Intro)
+
     this.bgMusic = this.sound.get("music");
-    
-    // Camera zoom
+
     this.cameras.main.startFollow(this.player);
     this.cameras.main.setZoom(1.5);
 
-    // Crea camera HUD
     this.hudCamera = this.cameras.add(0, 0, GameData.globals.gameWidth, GameData.globals.gameHeight);
     this.hudCamera.setScroll(0, 0);
     this.hudCamera.setZoom(1);
 
-    // Escludi oggetti del mondo dalla camera HUD
     this.hudCamera.ignore(floor);
     this.hudCamera.ignore(collideLayer);
     this.hudCamera.ignore(this.player);
-    // Ignora anche il debug della fisica sulla camera HUD se attivo
     if (this.physics.world.debugGraphic) {
       this.hudCamera.ignore(this.physics.world.debugGraphic);
     }
 
-    // Escludi oggetti HUD dalla camera principale
     this.cameras.main.ignore(this.playerHealthBar);
     this.cameras.main.ignore(this.abilityText);
     this.cameras.main.ignore(this.sprintText);
@@ -110,151 +97,149 @@ export default class GamePlay extends Phaser.Scene {
     this.cameras.main.ignore(this.pauseOverlay);
 
     if (!this.anims.exists("mago-idle")) {
-        this.anims.create({
-            key: "mago-idle",
-            frames: this.anims.generateFrameNumbers("mago", { start: 0, end: 5 }),
-            frameRate: 10,
-            repeat: -1,
-        });
+      this.anims.create({
+        key: "mago-idle",
+        frames: this.anims.generateFrameNumbers("mago", { start: 0, end: 5 }),
+        frameRate: 10,
+        repeat: -1,
+      });
     }
 
-    // Ora che hudCamera è pronta, possiamo spawnare
+    if (!this.anims.exists("scheletro-run")) {
+      this.anims.create({
+        key: "scheletro-run",
+        frames: this.anims.generateFrameNumbers("scheletro_run", { start: 0, end: 6 }),
+        frameRate: 8,
+        repeat: -1,
+      });
+    }
+    if (!this.anims.exists("demon-run")) {
+      this.anims.create({
+        key: "demon-run",
+        frames: this.anims.generateFrameNumbers("demon_run", { start: 0, end: 6 }),
+        frameRate: 8,
+        repeat: -1,
+      });
+    }
+
     for (let i = 0; i < 5; i++) {
-        this.spawnEnemy(map, true);
+      this.spawnEnemy(map, true);
     }
 
     this.spawnEvent = this.time.addEvent({
-        delay: Phaser.Math.Between(2000, 4000),
-        callback: () => {
-            if (!this.isGameOver) {
-                this.spawnEnemy(map, true); 
-                this.spawnEvent.reset({
-                    delay: Phaser.Math.Between(2000, 4000),
-                    callback: this.spawnEvent.callback,
-                    callbackScope: this
-                });
-            }
-        },
-        callbackScope: this,
-        loop: true
+      delay: Phaser.Math.Between(2000, 4000),
+      callback: () => {
+        if (!this.isGameOver) {
+          this.spawnEnemy(map, true);
+          this.spawnEvent.reset({
+            delay: Phaser.Math.Between(2000, 4000),
+            callback: this.spawnEvent.callback,
+            callbackScope: this
+          });
+        }
+      },
+      callbackScope: this,
+      loop: true
     });
 
     this.physics.add.collider(this.enemies, collideLayer);
     this.physics.add.collider(this.bullets, collideLayer, (b: any) => b.destroy());
     this.physics.add.collider(this.enemyBullets, collideLayer, (b: any) => b.destroy());
-    
+
     this.physics.add.overlap(this.bullets, this.enemies, (b: any, e: any) => {
       b.destroy();
       this.damageEnemy(e);
     });
 
     this.physics.add.overlap(this.enemyBullets, this.player, (p: any, b: any) => {
-      if (!this.player.isInvulnerable && !this.isGameOver) {
-        b.destroy();
-        this.player.hp -= 10;
-        this.player.isInvulnerable = true;
-        this.player.setTint(0xff0000);
-        this.updatePlayerHealthBar();
-        if (this.player.hp <= 0) this.showEndScreen(false);
-        else {
-          this.time.delayedCall(1000, () => {
-            this.player.isInvulnerable = false;
-            this.player.clearTint();
-          });
-        }
-      } else if (this.isGameOver || this.player.isInvulnerable) {
-        // Se già colpito o game over, proiettile passa o sparisce senza danni
-        b.destroy();
-      }
+      b.destroy();
+      this.handlePlayerDamage();
     });
 
     this.physics.add.collider(this.player, this.enemies, (p, e) => {
-      if (!this.player.isInvulnerable && !this.isGameOver) {
-        this.player.hp -= 10;
-        this.player.isInvulnerable = true;
-        this.player.setTint(0xff0000);
-        this.updatePlayerHealthBar();
-        if (this.player.hp <= 0) this.showEndScreen(false);
-        else {
-          this.time.delayedCall(1000, () => {
-            this.player.isInvulnerable = false;
-            this.player.clearTint();
-          });
-        }
-      }
+      this.handlePlayerDamage();
     });
 
     this.physics.add.collider(this.enemies, this.enemies);
-
-    // Input
     this.cursors = this.input.keyboard.createCursorKeys();
     this.wasd = this.input.keyboard.addKeys({
       up: "W", down: "S", left: "A", right: "D",
     }) as Phaser.Types.Input.Keyboard.CursorKeys;
-    
+
     this.tabKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.TAB);
     this.shiftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
     this.escKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
     this.input.keyboard.addCapture([Phaser.Input.Keyboard.KeyCodes.TAB, Phaser.Input.Keyboard.KeyCodes.ESC]);
 
-    // Mouse click attack
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
       if (pointer.leftButtonDown()) {
         this.performAttack();
       }
     });
 
-    // ESC to toggle pause
     this.input.keyboard.on("keydown-ESC", () => {
-        this.togglePause();
+      this.togglePause();
     });
+  }
+
+  handlePlayerDamage() {
+    if (!this.player.isInvulnerable && !this.isGameOver) {
+      this.player.hp -= 10;
+      this.player.isInvulnerable = true;
+      this.player.setTint(0xff0000);
+      this.updatePlayerHealthBar();
+      if (this.player.hp <= 0) this.showEndScreen(false);
+      else {
+        this.time.delayedCall(1000, () => {
+          this.player.isInvulnerable = false;
+          this.player.clearTint();
+        });
+      }
+    }
   }
 
   togglePause() {
     if (this.isGameOver) return;
     this.isPaused = !this.isPaused;
-    
+
     if (this.isPaused) {
-        this.physics.pause();
-        this.pauseOverlay.setVisible(true);
-        this.player.anims.pause();
-        this.enemies.getChildren().forEach((e: any) => e.anims.pause());
-        this.spawnEvent.paused = true;
-        if (this.bgMusic) this.bgMusic.pause();
+      this.physics.pause();
+      this.pauseOverlay.setVisible(true);
+      this.player.anims.pause();
+      this.enemies.getChildren().forEach((e: any) => e.anims.pause());
+      this.enemyBullets.getChildren().forEach((b: any) => { if(b.body) b.body.enable = false; });
+      this.spawnEvent.paused = true;
+      if (this.bgMusic) this.bgMusic.pause();
     } else {
-        this.physics.resume();
-        this.pauseOverlay.setVisible(false);
-        this.player.anims.resume();
-        this.enemies.getChildren().forEach((e: any) => e.anims.resume());
-        this.spawnEvent.paused = false;
-        if (this.bgMusic) this.bgMusic.resume();
+      this.physics.resume();
+      this.pauseOverlay.setVisible(false);
+      this.player.anims.resume();
+      this.enemies.getChildren().forEach((e: any) => e.anims.resume());
+      this.enemyBullets.getChildren().forEach((b: any) => { if(b.body) b.body.enable = true; });
+      this.spawnEvent.paused = false;
+      if (this.bgMusic) this.bgMusic.resume();
     }
   }
 
   setupPauseUI() {
     const bg = this.add.rectangle(0, 0, GameData.globals.gameWidth, GameData.globals.gameHeight, 0x000000, 0.5).setOrigin(0);
-    const text = this.add.text(GameData.globals.gameWidth/2, GameData.globals.gameHeight/2, "PAUSA", { fontSize: "64px", color: "#ffffff" }).setOrigin(0.5);
-    const subText = this.add.text(GameData.globals.gameWidth/2, GameData.globals.gameHeight/2 + 80, "Premi ESC per continuare", { fontSize: "24px", color: "#ffffff" }).setOrigin(0.5);
-    
+    const text = this.add.text(GameData.globals.gameWidth / 2, GameData.globals.gameHeight / 2, "PAUSA", { fontSize: "64px", color: "#ffffff" }).setOrigin(0.5);
+    const subText = this.add.text(GameData.globals.gameWidth / 2, GameData.globals.gameHeight / 2 + 80, "Premi ESC per continuare", { fontSize: "24px", color: "#ffffff" }).setOrigin(0.5);
     this.pauseOverlay = this.add.container(0, 0, [bg, text, subText]).setScrollFactor(0).setDepth(3000).setVisible(false);
   }
 
   performAttack() {
     if (this.isGameOver || this.isPaused) return;
-    
-    // Calcola direzione verso il mouse
+
     const pointer = this.input.activePointer;
     const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, pointer.worldX, pointer.worldY);
     this.lastDirection.set(Math.cos(angle), Math.sin(angle));
-    
-    // Aggiorna flipX in base alla posizione del mouse
     this.player.setFlipX(pointer.worldX < this.player.x);
 
     if (this.currentAbility === "punch") {
       this.player.anims.play("punch", true);
       this.enemies.getChildren().forEach((e: any) => {
         const distance = Phaser.Math.Distance.Between(this.player.x, this.player.y, e.x, e.y);
-        // Calcola l'angolo verso il nemico per vedere se è nel raggio d'azione frontale (opzionale, per ora usiamo solo distanza)
         if (distance < 100) this.damageEnemy(e);
       });
     } else {
@@ -277,62 +262,95 @@ export default class GamePlay extends Phaser.Scene {
 
   setupPlayerAnims() {
     if (!this.anims.exists("walk")) {
-        this.anims.create({ key: "walk", frames: this.anims.generateFrameNumbers("player", { start: 10, end: 17 }), frameRate: 10, repeat: -1 });
-        this.anims.create({ key: "punch", frames: this.anims.generateFrameNumbers("player", { start: 41, end: 42 }), frameRate: 15, repeat: 0 });
-        this.anims.create({ key: "shoot", frames: this.anims.generateFrameNumbers("player", { start: 7, end: 10 }), frameRate: 15, repeat: 0 });
+      this.anims.create({ key: "walk", frames: this.anims.generateFrameNumbers("player", { start: 10, end: 17 }), frameRate: 10, repeat: -1 });
+      this.anims.create({ key: "punch", frames: this.anims.generateFrameNumbers("player", { start: 41, end: 42 }), frameRate: 15, repeat: 0 });
+      this.anims.create({ key: "shoot", frames: this.anims.generateFrameNumbers("player", { start: 7, end: 10 }), frameRate: 15, repeat: 0 });
     }
   }
 
   spawnEnemy(map: Phaser.Tilemaps.Tilemap, forceRandom: boolean = false) {
     const cam = this.cameras.main;
     const offset = 100;
-    let x, y;
+    let x: number, y: number;
 
     if (forceRandom || cam.worldView.width === 0) {
-      // Spawn casuale in tutta la mappa (usato a inizio gioco o se cam non è pronta)
       x = Phaser.Math.Between(40, map.widthInPixels * 2 - 40);
       y = Phaser.Math.Between(40, map.heightInPixels * 2 - 40);
-      
-      // Assicuriamoci che non spawni troppo vicino al player
       const px = this.player ? this.player.x : 200;
       const py = this.player ? this.player.y : 200;
-      let dist = Phaser.Math.Distance.Between(x, y, px, py);
+      const dist = Phaser.Math.Distance.Between(x, y, px, py);
       if (dist < 300) {
-        // Riprova una volta se troppo vicino
         x = Phaser.Math.Between(40, map.widthInPixels * 2 - 40);
         y = Phaser.Math.Between(40, map.heightInPixels * 2 - 40);
       }
     } else {
-      // Spawn intorno alla camera (per gameplay continuo)
       const side = Phaser.Math.Between(0, 3);
       switch (side) {
-          case 0: x = Phaser.Math.Between(cam.worldView.left, cam.worldView.right); y = cam.worldView.top - offset; break;
-          case 1: x = cam.worldView.right + offset; y = Phaser.Math.Between(cam.worldView.top, cam.worldView.bottom); break;
-          case 2: x = Phaser.Math.Between(cam.worldView.left, cam.worldView.right); y = cam.worldView.bottom + offset; break;
-          case 3: default: x = cam.worldView.left - offset; y = Phaser.Math.Between(cam.worldView.top, cam.worldView.bottom); break;
+        case 0: x = Phaser.Math.Between(cam.worldView.left, cam.worldView.right); y = cam.worldView.top - offset; break;
+        case 1: x = cam.worldView.right + offset; y = Phaser.Math.Between(cam.worldView.top, cam.worldView.bottom); break;
+        case 2: x = Phaser.Math.Between(cam.worldView.left, cam.worldView.right); y = cam.worldView.bottom + offset; break;
+        default: x = cam.worldView.left - offset; y = Phaser.Math.Between(cam.worldView.top, cam.worldView.bottom); break;
       }
     }
 
     x = Phaser.Math.Clamp(x, 40, map.widthInPixels * 2 - 40);
     y = Phaser.Math.Clamp(y, 40, map.heightInPixels * 2 - 40);
-    
-    const enemy = this.enemies.create(x, y, "mago") as any;
-    enemy.hp = 3; enemy.maxHp = 3;
+
+    const rand = Phaser.Math.Between(0, 2);
+    let type: "skeleton" | "mago" | "demon";
+    let textureKey: string;
+    let animKey: string;
+    let hp: number;
+
+    if (rand === 0) {
+      type = "skeleton";
+      textureKey = "scheletro_run";
+      animKey = "scheletro-run";
+      hp = 2;
+    } else if (rand === 1) {
+      type = "mago";
+      textureKey = "mago";
+      animKey = "mago-idle";
+      hp = 3;
+    } else {
+      type = "demon";
+      textureKey = "demon_run";
+      animKey = "demon-run";
+      hp = 5;
+    }
+
+    const enemy = this.enemies.create(x, y, textureKey) as any;
+    enemy.hp = hp;
+    enemy.maxHp = enemy.hp;
+    enemy.type = type;
+    enemy.state = "CHASE";
+    enemy.lastAttackTime = 0;
     enemy.healthBar = this.add.graphics();
-    
-    // Escludiamo il nemico e la sua barra salute dalla camera HUD (che è a zoom 1x)
-    // Così appariranno solo nella camera principale (che è a zoom 1.5x)
+
     if (this.hudCamera) {
       this.hudCamera.ignore(enemy);
       this.hudCamera.ignore(enemy.healthBar);
     }
 
     enemy.setCollideWorldBounds(true);
-    enemy.setScale(0.5);
-    enemy.setBodySize(60, 60); // Più piccolo per mago 191x188 scaled 0.5 (~95x94)
-    enemy.setOffset(65, 80); // Centrato sulla base
-    enemy.setBounce(1); enemy.setDrag(100);
-    enemy.play("mago-idle");
+    enemy.setBounce(1);
+    enemy.setDrag(100);
+
+    if (type === "skeleton") {
+      enemy.setScale(0.8);
+      enemy.setBodySize(80, 100);
+      enemy.setOffset(24, 20);
+    } else if (type === "mago") {
+      enemy.setScale(0.5);
+      enemy.setBodySize(60, 60);
+      enemy.setOffset(65, 80);
+    } else {
+      enemy.setScale(0.6);
+      enemy.setBodySize(80, 100);
+      enemy.setOffset(24, 20);
+    }
+
+    enemy.play(animKey);
   }
 
   damageEnemy(e: any) {
@@ -340,10 +358,11 @@ export default class GamePlay extends Phaser.Scene {
     e.setTint(0xff0000);
     this.time.delayedCall(200, () => e.clearTint());
     if (e.hp <= 0) {
-        e.healthBar.destroy(); e.destroy();
-        this.enemiesKilled++;
-        this.objectiveText.setText(`Obiettivo: ${this.enemiesKilled}/${this.targetKills}`);
-        if (this.enemiesKilled >= this.targetKills && !this.isGameOver) this.showEndScreen(true);
+      e.healthBar.destroy();
+      e.destroy();
+      this.enemiesKilled++;
+      this.objectiveText.setText(`Obiettivo: ${this.enemiesKilled}/${this.targetKills}`);
+      if (this.enemiesKilled >= this.targetKills && !this.isGameOver) this.showEndScreen(true);
     }
   }
 
@@ -359,25 +378,29 @@ export default class GamePlay extends Phaser.Scene {
   updateEnemyHealthBar(enemy: any) {
     enemy.healthBar.clear();
     if (enemy.hp <= 0) return;
-    const x = enemy.x - 25; const y = enemy.y - 55; // Posizione corretta sopra la testa
-    enemy.healthBar.fillStyle(0x000000, 0.5); enemy.healthBar.fillRect(x, y, 50, 6);
-    enemy.healthBar.fillStyle(0xff0000, 1); enemy.healthBar.fillRect(x, y, (enemy.hp / enemy.maxHp) * 50, 6);
+    const x = enemy.x - 25;
+    const y = enemy.y - 55;
+    enemy.healthBar.fillStyle(0x000000, 0.5);
+    enemy.healthBar.fillRect(x, y, 50, 6);
+    enemy.healthBar.fillStyle(0xff0000, 1);
+    enemy.healthBar.fillRect(x, y, (enemy.hp / enemy.maxHp) * 50, 6);
   }
 
   showEndScreen(victory: boolean) {
-    this.isGameOver = true; this.physics.pause();
+    this.isGameOver = true;
+    this.physics.pause();
+    this.enemyBullets.clear(true, true);
     this.player.setTint(victory ? 0x00ff00 : 0xff0000);
-    const overlay = this.add.rectangle(GameData.globals.gameWidth/2, GameData.globals.gameHeight/2, GameData.globals.gameWidth, GameData.globals.gameHeight, 0x000000, 0.7).setScrollFactor(0).setDepth(2000);
-    const title = this.add.text(GameData.globals.gameWidth/2, GameData.globals.gameHeight/2 - 100, victory ? "VITTORIA!" : "GAME OVER", { fontSize: "60px", color: victory ? "#00ff00" : "#ff0000" }).setOrigin(0.5).setScrollFactor(0).setDepth(2001);
-    const msg = this.add.text(GameData.globals.gameWidth/2, GameData.globals.gameHeight/2 - 20, `Nemici sconfitti: ${this.enemiesKilled}`, { fontSize: "30px", color: "#ffffff" }).setOrigin(0.5).setScrollFactor(0).setDepth(2001);
-    const btnRestart = this.add.text(GameData.globals.gameWidth/2, GameData.globals.gameHeight/2 + 60, " RIAVVIA GIOCO ", { fontSize: "32px", color: "#ffffff", backgroundColor: "#00aa00", padding: {x:20, y:10} }).setOrigin(0.5).setScrollFactor(0).setDepth(2001).setInteractive({ useHandCursor: true });
+    const overlay = this.add.rectangle(GameData.globals.gameWidth / 2, GameData.globals.gameHeight / 2, GameData.globals.gameWidth, GameData.globals.gameHeight, 0x000000, 0.7).setScrollFactor(0).setDepth(2000);
+    const title = this.add.text(GameData.globals.gameWidth / 2, GameData.globals.gameHeight / 2 - 100, victory ? "VITTORIA!" : "GAME OVER", { fontSize: "60px", color: victory ? "#00ff00" : "#ff0000" }).setOrigin(0.5).setScrollFactor(0).setDepth(2001);
+    const msg = this.add.text(GameData.globals.gameWidth / 2, GameData.globals.gameHeight / 2 - 20, `Nemici sconfitti: ${this.enemiesKilled}`, { fontSize: "30px", color: "#ffffff" }).setOrigin(0.5).setScrollFactor(0).setDepth(2001);
+    const btnRestart = this.add.text(GameData.globals.gameWidth / 2, GameData.globals.gameHeight / 2 + 60, " RIAVVIA GIOCO ", { fontSize: "32px", color: "#ffffff", backgroundColor: "#00aa00", padding: { x: 20, y: 10 } }).setOrigin(0.5).setScrollFactor(0).setDepth(2001).setInteractive({ useHandCursor: true });
     btnRestart.on("pointerdown", () => {
-        if (this.bgMusic) this.bgMusic.stop();
-        this.scene.restart();
+      if (this.bgMusic) this.bgMusic.stop();
+      this.scene.restart();
     });
-    const btnAction = this.add.text(GameData.globals.gameWidth/2, GameData.globals.gameHeight/2 + 140, victory ? " CONTINUA (Endless) " : " TORNA AL MENU ", { fontSize: "32px", color: "#ffffff", backgroundColor: "#333333", padding: {x:20, y:10} }).setOrigin(0.5).setScrollFactor(0).setDepth(2001).setInteractive({ useHandCursor: true });
-    
-    // Ignora questi elementi dalla camera principale
+    const btnAction = this.add.text(GameData.globals.gameWidth / 2, GameData.globals.gameHeight / 2 + 140, victory ? " CONTINUA (Endless) " : " TORNA AL MENU ", { fontSize: "32px", color: "#ffffff", backgroundColor: "#333333", padding: { x: 20, y: 10 } }).setOrigin(0.5).setScrollFactor(0).setDepth(2001).setInteractive({ useHandCursor: true });
+
     this.cameras.main.ignore(overlay);
     this.cameras.main.ignore(title);
     this.cameras.main.ignore(msg);
@@ -385,83 +408,97 @@ export default class GamePlay extends Phaser.Scene {
     this.cameras.main.ignore(btnAction);
 
     btnAction.on("pointerdown", () => {
-        if (victory) {
-            this.isGameOver = false; this.physics.resume(); overlay.destroy(); title.destroy(); msg.destroy(); btnRestart.destroy(); btnAction.destroy();
-            this.targetKills += 20; this.objectiveText.setText(`Obiettivo: ${this.enemiesKilled}/${this.targetKills}`);
-        } else {
-            if (this.bgMusic) this.bgMusic.stop();
-            this.scene.start("Intro");
-        }
+      if (victory) {
+        this.isGameOver = false;
+        this.physics.resume();
+        overlay.destroy(); title.destroy(); msg.destroy(); btnRestart.destroy(); btnAction.destroy();
+        this.targetKills += 20;
+        this.objectiveText.setText(`Obiettivo: ${this.enemiesKilled}/${this.targetKills}`);
+      } else {
+        if (this.bgMusic) this.bgMusic.stop();
+        this.scene.start("Intro");
+      }
     });
   }
 
-  update(time: number, delta: number): void {
+  private updateEnemyAI(enemy: any, time: number) {
     if (this.isGameOver || this.isPaused) return;
-    const currentSpeed = this.isSprinting ? this.sprintSpeed : this.normalSpeed;
-    const body = this.player.body as Phaser.Physics.Arcade.Body;
 
-    if (Phaser.Input.Keyboard.JustDown(this.shiftKey) && this.canSprint) this.startSprint();
-    if (Phaser.Input.Keyboard.JustDown(this.tabKey)) {
-      this.currentAbility = this.currentAbility === "punch" ? "shoot" : "punch";
-      this.abilityText.setText(`Abilità: ${this.currentAbility === "punch" ? "PUGNO" : "SPARO"} [TAB/LMB]`);
+    const dist = Phaser.Math.Distance.Between(enemy.x, enemy.y, this.player.x, this.player.y);
+    const angle = Phaser.Math.Angle.Between(enemy.x, enemy.y, this.player.x, this.player.y);
+
+    switch (enemy.type) {
+      case "skeleton":
+        this.updateSkeletonAI(enemy, dist, angle, time);
+        break;
+      case "mago":
+        this.updateMagoAI(enemy, dist, angle, time);
+        break;
+      case "demon":
+        this.updateDemonAI(enemy, dist, angle, time);
+        break;
     }
 
-    const isAttacking = this.player.anims.currentAnim && (this.player.anims.currentAnim.key === "punch" || this.player.anims.currentAnim.key === "shoot") && this.player.anims.isPlaying;
+    enemy.setFlipX(this.player.x < enemy.x); // Guarda sempre il player
+    this.updateEnemyHealthBar(enemy);
+  }
 
-    if (isAttacking) {
-      body.setVelocity(0);
+  private updateSkeletonAI(enemy: any, dist: number, angle: number, time: number) {
+    // Lo scheletro insegue e quando è vicino fa un piccolo scatto (lunge)
+    if (dist < 120 && time > enemy.lastAttackTime + 2000) {
+      // Attacco Lunge
+      enemy.lastAttackTime = time;
+      this.physics.velocityFromRotation(angle, 400, enemy.body.velocity);
+      enemy.setTint(0xffaa00);
+      this.time.delayedCall(300, () => enemy.clearTint());
+    } else if (dist > 30) {
+      this.physics.moveToObject(enemy, this.player, 120);
+    }
+  }
+
+  private updateMagoAI(enemy: any, dist: number, angle: number, time: number) {
+    // IA "Smart": mantiene distanza e si muove in modo intelligente
+    if (dist > 400) {
+      // Troppo lontano, si avvicina
+      this.physics.moveToObject(enemy, this.player, 120);
+    } else if (dist < 250) {
+      // Troppo vicino, scappa via dal player
+      this.physics.velocityFromRotation(angle, -150, enemy.body.velocity);
     } else {
-      let dx = 0; let dy = 0;
-      if (this.cursors.left.isDown || this.wasd.left.isDown) dx = -1;
-      else if (this.cursors.right.isDown || this.wasd.right.isDown) dx = 1;
-      if (this.cursors.up.isDown || this.wasd.up.isDown) dy = -1;
-      else if (this.cursors.down.isDown || this.wasd.down.isDown) dy = 1;
+      // Distanza ottimale (250-400), si muove un po' lateralmente (strafing)
+      // Aggiunge un movimento perpendicolare (strafing)
+      const strafeAngle = angle + Math.PI / 2;
+      enemy.body.velocity.set(Math.cos(strafeAngle) * 50, Math.sin(strafeAngle) * 50);
 
-      if (dx !== 0 || dy !== 0) {
-        body.setVelocity(dx * currentSpeed, dy * currentSpeed);
-        // Flip only if not attacking (to keep mouse orientation during attack)
-        if (!isAttacking) this.player.setFlipX(dx < 0);
-        this.player.anims.play("walk", true);
-      } else {
-        body.setVelocity(0);
-        this.player.anims.stop(); this.player.setFrame(0);
-      }
-
-      if (Phaser.Input.Keyboard.JustDown(this.cursors.space)) {
-        this.performAttack();
-        return; 
+      // Spara se pronto
+      if (time > enemy.lastAttackTime + Phaser.Math.Between(1500, 3000)) {
+        enemy.lastAttackTime = time;
+        this.enemyShoot(enemy);
       }
     }
+  }
 
-    this.enemies.getChildren().forEach((enemy: any) => {
-      const distance = Phaser.Math.Distance.Between(enemy.x, enemy.y, this.player.x, this.player.y);
+  private updateDemonAI(enemy: any, dist: number, angle: number, time: number) {
+    // Il demone carica se è a media distanza
+    if (enemy.state === "CHARGE") {
+      // Sta già caricando, non cambiare velocità finché non finisce
+      return;
+    }
+
+    if (dist > 150 && dist < 400 && time > enemy.lastAttackTime + 4000) {
+      // Inizia carica
+      enemy.state = "CHARGE";
+      enemy.lastAttackTime = time;
+      enemy.setTint(0xff00ff);
+      this.physics.velocityFromRotation(angle, 500, enemy.body.velocity);
       
-      // IA "Smart": mantiene distanza e si muove in modo intelligente
-      if (distance > 400) {
-        // Troppo lontano, si avvicina
-        this.physics.moveToObject(enemy, this.player, 120);
-      } else if (distance < 250) {
-        // Troppo vicino, scappa via dal player
-        const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, enemy.x, enemy.y);
-        enemy.body.velocity.set(Math.cos(angle) * 150, Math.sin(angle) * 150);
-      } else {
-        // Distanza ottimale (250-400), si muove un po' lateralmente (strafing)
-        const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, enemy.x, enemy.y);
-        // Aggiunge un movimento perpendicolare (strafing)
-        const strafeAngle = angle + Math.PI/2;
-        enemy.body.velocity.set(Math.cos(strafeAngle) * 50, Math.sin(strafeAngle) * 50);
-      }
-
-      // Spara se pronto e nel raggio d'azione
-      if (!enemy.nextFire) enemy.nextFire = 0;
-      if (time > enemy.nextFire && distance < 600) {
-        this.enemyShoot(enemy);
-        enemy.nextFire = time + Phaser.Math.Between(1500, 3000);
-      }
-
-      enemy.setFlipX(this.player.x < enemy.x); // Guarda sempre il player
-      this.updateEnemyHealthBar(enemy);
-    });
+      this.time.delayedCall(1000, () => {
+        enemy.state = "CHASE";
+        enemy.clearTint();
+      });
+    } else {
+      this.physics.moveToObject(enemy, this.player, 80);
+    }
   }
 
   enemyShoot(enemy: any) {
@@ -487,14 +524,65 @@ export default class GamePlay extends Phaser.Scene {
     });
   }
 
+  update(time: number, delta: number): void {
+    if (this.isGameOver || this.isPaused) return;
+
+    const currentSpeed = this.isSprinting ? this.sprintSpeed : this.normalSpeed;
+    const body = this.player.body as Phaser.Physics.Arcade.Body;
+
+    if (Phaser.Input.Keyboard.JustDown(this.shiftKey) && this.canSprint) this.startSprint();
+    if (Phaser.Input.Keyboard.JustDown(this.tabKey)) {
+      this.currentAbility = this.currentAbility === "punch" ? "shoot" : "punch";
+      this.abilityText.setText(`Abilità: ${this.currentAbility === "punch" ? "PUGNO" : "SPARO"} [TAB/LMB]`);
+    }
+
+    const isAttacking = this.player.anims.currentAnim &&
+      (this.player.anims.currentAnim.key === "punch" || this.player.anims.currentAnim.key === "shoot") &&
+      this.player.anims.isPlaying;
+
+    if (isAttacking) {
+      body.setVelocity(0);
+    } else {
+      let dx = 0;
+      let dy = 0;
+      if (this.cursors.left.isDown || this.wasd.left.isDown) dx = -1;
+      else if (this.cursors.right.isDown || this.wasd.right.isDown) dx = 1;
+      if (this.cursors.up.isDown || this.wasd.up.isDown) dy = -1;
+      else if (this.cursors.down.isDown || this.wasd.down.isDown) dy = 1;
+
+      if (dx !== 0 || dy !== 0) {
+        body.setVelocity(dx * currentSpeed, dy * currentSpeed);
+        if (!isAttacking) this.player.setFlipX(dx < 0);
+        this.player.anims.play("walk", true);
+      } else {
+        body.setVelocity(0);
+        this.player.anims.stop();
+        this.player.setFrame(0);
+      }
+
+      if (Phaser.Input.Keyboard.JustDown(this.cursors.space)) {
+        this.performAttack();
+        return;
+      }
+    }
+
+    this.enemies.getChildren().forEach((enemy: any) => {
+      this.updateEnemyAI(enemy, time);
+    });
+  }
+
   startSprint() {
-    this.isSprinting = true; this.canSprint = false;
-    this.sprintText.setText("Sprint: ATTIVO!").setColor("#ffff00"); this.player.setAlpha(0.7);
+    this.isSprinting = true;
+    this.canSprint = false;
+    this.sprintText.setText("Sprint: ATTIVO!").setColor("#ffff00");
+    this.player.setAlpha(0.7);
     this.time.delayedCall(5000, () => {
-      this.isSprinting = false; this.player.setAlpha(1);
+      this.isSprinting = false;
+      this.player.setAlpha(1);
       this.sprintText.setText("Sprint: COOLDOWN...").setColor("#ff0000");
       this.time.delayedCall(5000, () => {
-        this.canSprint = true; this.sprintText.setText("Sprint: PRONTO [SHIFT]").setColor("#00ff00");
+        this.canSprint = true;
+        this.sprintText.setText("Sprint: PRONTO [SHIFT]").setColor("#00ff00");
       });
     });
   }

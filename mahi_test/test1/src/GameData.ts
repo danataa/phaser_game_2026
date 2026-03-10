@@ -3,7 +3,7 @@ export let GameData: gameData = {
     gameWidth: 1280,
     gameHeight: 800,
     bgColor: "#ffffff",
-    debug: true
+    debug: false
   },
 
   preloader: {
@@ -22,17 +22,21 @@ export let GameData: gameData = {
   spritesheets: [
 
     { name: "player", path: "assets/images/player.png", width: 82, height: 70, frames: 50 },
-    { name: "mago", path: "assets/images/Pawn_Idle.png", width: 191, height: 188, frames: 8 },
+    //nemico
+    { name: "mago", path: "assets/images/Pawn_Idle.png", width: 192, height: 192, frames: 8 },
     { name: "tileset_0", path: "assets/map/mainlevbuild.png", width: 320, height: 192, frames: 0 },
+    { name: "demon_run", path: "assets/images/demon_run.png", width: 128, height: 128, frames: 8 },
+    { name: "scheletro_run", path: "assets/images/Scheletro/Run.png", width: 128, height: 128, frames: 8 },
+
     
     //{ name: "tileset_0", path: "assets/map/tileset_inferno.png", width: 320, height: 192, frames: 0 },
     
   ],
 
   tilemaps: [
-    //{key: "tilemap_0", path: "/assets/map/test_0.json"}
+    //{key: "tilemap_0", path: "assets/map/test_0.json"}
 
-    {key: "tilemap_0", path: "/assets/map/catacombe.json"}
+    {key: "tilemap_0", path: "assets/map/catacombe.json"}
   ],
 
   images: [
@@ -41,13 +45,6 @@ export let GameData: gameData = {
     { name: "freedoom", path: "assets/images/freedoom.png" },
     { name: "thelucasart", path: "assets/images/thelucasart.png" },
     { name: "intro-bg", path: "assets/images/intro-bg.jpg" },
-    { name: "bg-1", path: "assets/images/bg/1.png" },
-    { name: "bg-2", path: "assets/images/bg/2.png" },
-    { name: "bg-3", path: "assets/images/bg/3.png" },
-    { name: "bg-4", path: "assets/images/bg/4.png" },
-    { name: "bg-5", path: "assets/images/bg/5.png" },
-    { name: "bg-6", path: "assets/images/bg/6.png" },
-    { name: "bg-7", path: "assets/images/bg/7.png" },
 
 
 

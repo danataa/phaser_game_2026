@@ -3,6 +3,9 @@ import Player from "./Player";
 
 export default class Chierico extends Player {
 
+  // ================================
+  // ATTRIBUTI
+  // ================================
   private _ultimaGuarigione: number = 0;
   private _cooldownGuarigione: number = 5000;
   private _ultimoScudo: number = 0;
@@ -13,13 +16,23 @@ export default class Chierico extends Player {
   private _cooldownCerchio: number = 6000;
   private _raggioCerchio: number = 80;
 
+  // ================================
+  // COSTRUTTORE
+  // ================================
   constructor(params: { scene: GamePlay; x: number; y: number }) {
     super(params);
   }
 
+  // ================================
+  // UPDATE — chiamato ogni frame da GamePlay
+  // ================================
   update(time: number, delta: number): void {
     super.update(time, delta);
   }
+
+  // ================================
+  // ABILITÀ
+  // ================================
 
   public abilitaGuarigione(): void {
     const ora = this._scena.time.now;
@@ -31,11 +44,13 @@ export default class Chierico extends Player {
     console.log("❤️ Chierico si cura!");
     this.cura(20);
 
+    // Feedback visivo verde durante la guarigione
     this.setTint(0x00ff00);
     this._scena.time.delayedCall(500, () => this.clearTint());
   }
 
   public scudoDivino(): void {
+    // Evitiamo scudi sovrapposti
     if (this._scudoAttivo) return;
 
     const ora = this._scena.time.now;
@@ -49,8 +64,10 @@ export default class Chierico extends Player {
     this.invulnerabile = true;
     console.log("🛡️ Scudo divino attivato!");
 
+    // Feedback visivo giallo durante lo scudo
     this.setTint(0xffff00);
 
+    // Disattiviamo lo scudo dopo la durata
     this._scena.time.delayedCall(this._durataScudo, () => {
       this.clearTint();
       this.invulnerabile = false;
@@ -68,6 +85,7 @@ export default class Chierico extends Player {
     this._ultimoCerchio = ora;
     console.log("🔥 Cerchio di fuoco!");
 
+    // Effetto visivo del cerchio di fuoco
     const cerchio = this._scena.add.circle(this.x, this.y, this._raggioCerchio, 0xff5500, 0.5);
     this._scena.tweens.add({
       targets: cerchio,
@@ -80,14 +98,15 @@ export default class Chierico extends Player {
     this.infliggiDannoANemiciNelRaggio(30, this._raggioCerchio);
   }
 
+  // ================================
+  // METODI PRIVATI
+  // ================================
   private infliggiDannoANemiciNelRaggio(danno: number, raggio: number): void {
     const nemici = this._scena.getNemici()?.getChildren() || [];
     nemici.forEach((obj: any) => {
       if (obj.active && obj.subisciDanno) {
         const dist = Phaser.Math.Distance.Between(this.x, this.y, obj.x, obj.y);
-        if (dist <= raggio) {
-          obj.subisciDanno(danno);
-        }
+        if (dist <= raggio) obj.subisciDanno(danno);
       }
     });
   }
