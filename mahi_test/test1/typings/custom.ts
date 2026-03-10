@@ -81,6 +81,9 @@ interface SpritesheetsAsset {
 interface SoundAsset {
   name: string;
   paths: Array<string>;
+  volume?: number;
+  loop?: boolean;
+  [key: string]: any;
 }
 
 interface AudioSpriteAsset {

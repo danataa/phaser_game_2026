@@ -26,6 +26,7 @@ window.addEventListener("load", () => {
     parent: "my-game",
     scale: {
       mode: Phaser.Scale.FIT,
+      autoCenter: Phaser.Scale.CENTER_BOTH,
       width: GameData.globals.gameWidth,
       height: GameData.globals.gameHeight,
     },

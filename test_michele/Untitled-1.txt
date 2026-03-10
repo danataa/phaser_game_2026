@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RE(VOLUTION)</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; font-family: 'Georgia', serif; }
+  canvas { display: block; image-rendering: pixelated; }
+  #ui {
+    position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: 800px; height: 600px; pointer-events: none;
+  }
+  #hud {
+    position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+    width: 800px; display: flex; justify-content: space-between; align-items: flex-end;
+    pointer-events: none;
+  }
+  #mask-ui {
+    display: flex; gap: 8px;
+  }
+  .mask-btn {
+    width: 60px; height: 60px; border: 2px solid #888; border-radius: 4px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-size: 9px; color: #ccc; background: rgba(0,0,0,0.7); cursor: pointer;
+    pointer-events: all; transition: border-color 0.2s;
+    position: relative;
+  }
+  .mask-btn.active { border-color: #ffd700; background: rgba(255,215,0,0.15); color: #ffd700; }
+  .mask-btn .mask-icon { font-size: 22px; }
+  .mask-btn .mask-key { position: absolute; top: 2px; right: 4px; font-size: 8px; color: #888; }
+  .mask-btn .cooldown-bar {
+    position: absolute; bottom: 0; left: 0; height: 3px; background: #4af; transition: width 0.1s;
+  }
+  #health-bar { width: 200px; }
+  #health-label { color: #ccc; font-size: 11px; margin-bottom: 3px; }
+  #health-track { background: #333; height: 16px; border-radius: 3px; border: 1px solid #555; overflow: hidden; }
+  #health-fill { height: 100%; background: linear-gradient(90deg, #c00, #f44); transition: width 0.2s; }
+  #wave-info { color: #ffd700; font-size: 13px; text-align: center; text-shadow: 0 0 8px #ffd700; }
+  #ability-info { color: #4af; font-size: 11px; text-align: right; }
+  #overlay {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.85); pointer-events: all;
+  }
+  #overlay h1 { color: #ffd700; font-size: 42px; letter-spacing: 6px; text-shadow: 0 0 20px #ffd700; margin-bottom: 10px; }
+  #overlay p { color: #ccc; font-size: 15px; margin: 6px 0; }
+  #overlay button {
+    margin-top: 24px; padding: 12px 36px; font-size: 16px; font-family: Georgia;
+    background: #ffd700; color: #000; border: none; border-radius: 4px; cursor: pointer;
+    letter-spacing: 2px; transition: all 0.2s;
+  }
+  #overlay button:hover { background: #fff; transform: scale(1.05); }
+  #narrator {
+    position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%);
+    width: 720px; background: rgba(0,0,0,0.8); border: 1px solid #555;
+    padding: 12px 18px; color: #ddd; font-size: 13px; line-height: 1.6;
+    border-radius: 4px; text-align: center; pointer-events: none;
+    opacity: 0; transition: opacity 0.5s;
+  }
+  #narrator.visible { opacity: 1; }
+  #cutscene {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    pointer-events: all;
+  }
+  #cutscene-image {
+    width: 300px; height: 220px; display: flex; align-items: center; justify-content: center;
+    border: 2px solid #555; border-radius: 4px; overflow: hidden; position: relative;
+  }
+  #cutscene-text {
+    margin-top: 20px; width: 600px; color: #ccc; font-size: 14px; line-height: 1.7;
+    text-align: center; min-height: 60px;
+  }
+  #cutscene-progress {
+    margin-top: 16px; display: flex; gap: 8px;
+  }
+  .cs-dot { width: 8px; height: 8px; border-radius: 50%; background: #444; }
+  .cs-dot.active { background: #ffd700; }
+  #skip-btn {
+    position: absolute; bottom: 20px; right: 20px; color: #888; font-size: 12px;
+    cursor: pointer; pointer-events: all;
+  }
+  #skip-btn:hover { color: #ffd700; }
+  #kill-counter { color: #f88; font-size: 12px; }
+  #score { color: #ffd700; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<canvas id="gameCanvas" width="800" height="600"></canvas>
+<div id="ui">
+  <!-- Cutscene -->
+  <div id="cutscene">
+    <div id="cutscene-image"></div>
+    <div id="cutscene-text"></div>
+    <div id="cutscene-progress"></div>
+    <div id="skip-btn" onclick="skipCutscene()">SALTA [SPAZIO]</div>
+  </div>
+
+  <!-- Start Screen -->
+  <div id="overlay" style="display:none;">
+    <h1>RE(VOLUTION)</h1>
+    <p style="color:#ffd700;font-size:12px;letter-spacing:3px;">PARIGI, 1789</p>
+    <p style="margin-top:12px;">Le catacombe ti attendono, alchimista.</p>
+    <p style="font-size:12px;color:#888;margin-top:8px;">[1/2/3] Cambia maschera &nbsp;|&nbsp; [CLIC] Attacca &nbsp;|&nbsp; [E] Abilità</p>
+    <button onclick="startGame()">ENTRA NELLE CATACOMBE</button>
+  </div>
+
+  <!-- Game Over / Win -->
+  <div id="gameover" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); display:none; flex-direction:column; align-items:center; justify-content:center;">
+    <h1 id="end-title" style="color:#f44; font-size:48px; letter-spacing:4px; text-shadow:0 0 20px #f00;"></h1>
+    <p id="end-text" style="color:#ccc; font-size:16px; margin-top:16px;"></p>
+    <button onclick="restartGame()" style="margin-top:24px; padding:12px 36px; font-size:16px; font-family:Georgia; background:#ffd700; color:#000; border:none; border-radius:4px; cursor:pointer;">RIGIOCA</button>
+  </div>
+
+  <!-- HUD -->
+  <div id="hud" style="display:none;">
+    <div>
+      <div id="health-bar">
+        <div id="health-label">❤️ VITA</div>
+        <div id="health-track"><div id="health-fill" style="width:100%"></div></div>
+      </div>
+      <div id="kill-counter" style="margin-top:4px;"></div>
+    </div>
+    <div style="text-align:center;">
+      <div id="wave-info">ORDA 1</div>
+      <div id="score" style="margin-top:4px;"></div>
+    </div>
+    <div>
+      <div id="ability-info" style="margin-bottom:6px;">[E] Abilità</div>
+      <div id="mask-ui">
+        <div class="mask-btn active" id="mask0" onclick="switchMask(0)">
+          <span class="mask-key">1</span>
+          <span class="mask-icon">🧪</span>
+          <span>Alchimista</span>
+          <div class="cooldown-bar" id="cd0" style="width:0%"></div>
+        </div>
+        <div class="mask-btn" id="mask1" onclick="switchMask(1)">
+          <span class="mask-key">2</span>
+          <span class="mask-icon">⚔️</span>
+          <span>Cavaliere</span>
+          <div class="cooldown-bar" id="cd1" style="width:0%"></div>
+        </div>
+        <div class="mask-btn" id="mask2" onclick="switchMask(2)">
+          <span class="mask-key">3</span>
+          <span class="mask-icon">✝️</span>
+          <span>Chierico</span>
+          <div class="cooldown-bar" id="cd2" style="width:0%"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="narrator"></div>
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+const CUTSCENE_SCRIPT = [
+  {
+    title: "Una lettera anonima...",
+    draw: drawLetter,
+    text: "Una busta sigillata arriva al tuo tavolo, alchimista. Il sigillo porta un simbolo che non hai mai visto prima..."
+  },
+  {
+    title: "La lettera aperta",
+    draw: drawOpenLetter,
+    text: "\"Le catacombe di Parigi sono in pericolo. Il Re ha stretto un patto col diavolo. Devi fermare tutto prima che sia troppo tardi.\""
+  },
+  {
+    title: "Il Re di Francia",
+    draw: drawKing,
+    text: "Luigi XVI, disperato, sa che la rivoluzione lo travolgerà. In preda al panico, ha accettato un accordo con una forza oscura..."
+  },
+  {
+    title: "La Rivoluzione",
+    draw: drawRevolution,
+    text: "Parigi brucia. Il popolo è in subbuglio. Le strade sono in fiamme e la ghigliottina attende. La rivoluzione è inevitabile..."
+  },
+  {
+    title: "Il Patto col Diavolo",
+    draw: drawDevil,
+    text: "Il diavolo ha promesso al Re di placare le folle con il terrore. In cambio: aprire i cancelli dell'inferno nelle catacombe di Parigi."
+  },
+  {
+    title: "Il tuo destino",
+    draw: drawOpenLetter2,
+    text: "La lettera conclude: \"Solo tu, con la tua maschera alchemica, puoi fermare ciò che sta per aprirsi. Entra nelle catacombe. Salva Parigi.\""
+  }
+];
+let csIndex = 0;
+let csFadeAlpha = 0;
+let csFadeIn = true;
+let csAnimFrame = 0;
+let csInterval = null;
+
+function drawCutsceneFrame() {
+  const el = document.getElementById('cutscene-image');
+  const c = document.createElement('canvas');
+  c.width = 300; c.height = 220;
+  const cx = c.getContext('2d');
+  CUTSCENE_SCRIPT[csIndex].draw(cx, c.width, c.height, csAnimFrame);
+  el.innerHTML = '';
+  el.appendChild(c);
+
+  const dots = document.getElementById('cutscene-progress');
+  dots.innerHTML = '';
+  CUTSCENE_SCRIPT.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'cs-dot' + (i === csIndex ? ' active' : '');
+    dots.appendChild(d);
+  });
+
+  document.getElementById('cutscene-text').textContent = CUTSCENE_SCRIPT[csIndex].text;
+}
+
+function drawLetter(cx, w, h, f) {
+  cx.fillStyle = '#1a0f05'; cx.fillRect(0,0,w,h);
+  // envelope
+  cx.fillStyle = '#c8a96e'; cx.fillRect(60, 60, 180, 120);
+  cx.strokeStyle = '#8b6914'; cx.lineWidth = 2; cx.strokeRect(60, 60, 180, 120);
+  // flap
+  cx.beginPath(); cx.moveTo(60,60); cx.lineTo(150, 130); cx.lineTo(240, 60); cx.closePath();
+  cx.fillStyle = '#b8944e'; cx.fill(); cx.stroke();
+  // seal
+  cx.beginPath(); cx.arc(150, 130, 14, 0, Math.PI*2);
+  cx.fillStyle = '#8b0000'; cx.fill();
+  cx.fillStyle = '#ffd700'; cx.font = 'bold 12px serif'; cx.textAlign = 'center';
+  cx.fillText('☩', 150, 135);
+  // animated glow
+  const glow = Math.sin(f*0.05)*0.3+0.7;
+  cx.shadowColor = '#ffd700'; cx.shadowBlur = 10*glow;
+  cx.fillStyle = `rgba(255,215,0,${0.1*glow})`;
+  cx.fillRect(60,60,180,120);
+  cx.shadowBlur = 0;
+  cx.fillStyle = '#ffd700'; cx.font = '13px Georgia'; cx.textAlign = 'center';
+  cx.fillText('Per: L\'Alchimista', 150, 200);
+}
+
+function drawOpenLetter(cx, w, h, f) {
+  cx.fillStyle = '#1a0f05'; cx.fillRect(0,0,w,h);
+  cx.fillStyle = '#f5e6c8'; cx.fillRect(40, 30, 220, 160);
+  cx.strokeStyle = '#8b6914'; cx.lineWidth = 1; cx.strokeRect(40, 30, 220, 160);
+  // lines of text
+  cx.fillStyle = '#3a2010'; cx.font = '9px Georgia';
+  const lines = [
+    '...le catacombe sono in pericolo.',
+    'Il Re ha stretto un patto',
+    'con una forza oscura.',
+    'Solo voi potete fermare',
+    'ciò che sta per accadere.',
+    'Il tempo stringe.',
+    'Andate nelle catacombe.',
+    '             - Anonimo'
+  ];
+  lines.forEach((l, i) => cx.fillText(l, 55, 58 + i*16));
+  // ink spot animation
+  const s = Math.sin(f*0.03)*2;
+  cx.fillStyle = '#1a0a00'; cx.beginPath(); cx.ellipse(200, 170, 4+s, 3, 0, 0, Math.PI*2); cx.fill();
+}
+
+function drawKing(cx, w, h, f) {
+  cx.fillStyle = '#0d0515'; cx.fillRect(0,0,w,h);
+  // throne room bg
+  cx.fillStyle = '#1a0a2a';
+  for(let i=0;i<8;i++) {
+    cx.fillStyle = i%2===0 ? '#1a0a2a' : '#150822';
+    cx.fillRect(i*38,0,38,h);
+  }
+  // crown
+  cx.fillStyle = '#ffd700';
+  cx.beginPath(); cx.moveTo(110,55); cx.lineTo(110,90); cx.lineTo(190,90); cx.lineTo(190,55);
+  cx.lineTo(175,70); cx.lineTo(160,50); cx.lineTo(150,65); cx.lineTo(140,50); cx.lineTo(125,70); cx.closePath();
+  cx.fill(); cx.strokeStyle = '#b8860b'; cx.lineWidth=1.5; cx.stroke();
+  // king body
+  cx.fillStyle = '#4a1a6a'; cx.fillRect(115, 90, 70, 85);
+  cx.fillStyle = '#ffd700'; // trim
+  cx.fillRect(115,90,70,5); cx.fillRect(115,170,70,5);
+  // head
+  cx.fillStyle = '#f0d0a0'; cx.beginPath(); cx.ellipse(150, 75, 22, 26, 0, 0, Math.PI*2); cx.fill();
+  // face - worried expression
+  cx.fillStyle = '#3a2010';
+  cx.fillRect(141,72,5,4); cx.fillRect(155,72,5,4); // eyes
+  cx.beginPath(); cx.arc(150, 85, 7, 0.2, Math.PI-0.2); cx.strokeStyle='#3a2010'; cx.lineWidth=1.5; cx.stroke(); // frown
+  // sweat drop animation
+  const sy = (f%40)/40 * 20 + 85;
+  if(sy < 105) { cx.fillStyle='rgba(100,150,255,0.7)'; cx.beginPath(); cx.ellipse(170, sy, 3, 4, 0,0,Math.PI*2); cx.fill(); }
+  cx.fillStyle='#ccc'; cx.font='12px Georgia'; cx.textAlign='center';
+  cx.fillText('Luigi XVI', 150, 200);
+}
+
+function drawRevolution(cx, w, h, f) {
+  cx.fillStyle = '#0a0000'; cx.fillRect(0,0,w,h);
+  // fire in background
+  for(let i=0;i<6;i++) {
+    const x = 20 + i*50;
+    const flicker = Math.sin(f*0.1 + i)*8;
+    const grad = cx.createRadialGradient(x, 180, 5, x, 160+flicker, 40);
+    grad.addColorStop(0,'rgba(255,200,0,0.8)');
+    grad.addColorStop(0.5,'rgba(255,80,0,0.5)');
+    grad.addColorStop(1,'rgba(0,0,0,0)');
+    cx.fillStyle=grad; cx.fillRect(x-40, 120+flicker, 80, 80);
+  }
+  // buildings silhouette
+  cx.fillStyle = '#1a0500';
+  cx.fillRect(0,140,60,80); cx.fillRect(70,120,50,100); cx.fillRect(140,150,80,70);
+  cx.fillRect(240,130,60,90);
+  // crowd
+  for(let i=0;i<18;i++) {
+    const x = 10 + i*16 + Math.sin(f*0.05+i)*2;
+    cx.fillStyle='#2a1a0a'; cx.fillRect(x, 195, 8, 25);
+    cx.fillStyle='#c8a070'; cx.beginPath(); cx.arc(x+4, 192, 4, 0, Math.PI*2); cx.fill();
+  }
+  // torch
+  const tx = Math.sin(f*0.04)*3;
+  cx.fillStyle='#8b4513'; cx.fillRect(130+tx, 170, 4, 30);
+  const tg = cx.createRadialGradient(132+tx, 168, 2, 132+tx, 165, 12);
+  tg.addColorStop(0,'rgba(255,220,0,1)'); tg.addColorStop(1,'rgba(255,60,0,0)');
+  cx.fillStyle=tg; cx.beginPath(); cx.arc(132+tx, 168, 12, 0, Math.PI*2); cx.fill();
+  cx.fillStyle='#f88'; cx.font='11px Georgia'; cx.textAlign='center';
+  cx.fillText('LIBERTÉ!', 150, 215);
+}
+
+function drawDevil(cx, w, h, f) {
+  cx.fillStyle = '#050005'; cx.fillRect(0,0,w,h);
+  const pulse = Math.sin(f*0.07)*0.3+0.7;
+  const bg = cx.createRadialGradient(150, 180, 10, 150, 150, 130);
+  bg.addColorStop(0,`rgba(150,0,0,${0.6*pulse})`);
+  bg.addColorStop(1,'rgba(0,0,0,0)');
+  cx.fillStyle=bg; cx.fillRect(0,0,w,h);
+  cx.fillStyle='#1a0000';
+  cx.beginPath(); cx.ellipse(150, 150, 45, 60, 0, 0, Math.PI*2); cx.fill();
+  cx.fillStyle='#2a0000'; cx.beginPath(); cx.arc(150, 85, 30, 0, Math.PI*2); cx.fill();
+  cx.fillStyle='#3a0000';
+  cx.beginPath(); cx.moveTo(128,65); cx.lineTo(120,35); cx.lineTo(135,60); cx.closePath(); cx.fill();
+  cx.beginPath(); cx.moveTo(172,65); cx.lineTo(180,35); cx.lineTo(165,60); cx.closePath(); cx.fill();
+  const eg = Math.sin(f*0.08)*0.4+0.6;
+  cx.fillStyle=`rgba(255,50,0,${eg})`;
+  cx.beginPath(); cx.ellipse(140, 85, 7, 5, 0, 0, Math.PI*2); cx.fill();
+  cx.beginPath(); cx.ellipse(160, 85, 7, 5, 0, 0, Math.PI*2); cx.fill();
+  cx.strokeStyle='#3a0000'; cx.lineWidth=3;
+  cx.beginPath(); cx.moveTo(190,180); cx.quadraticCurveTo(220,160,210,200); cx.stroke();
+  cx.fillStyle='#f5e6c8'; cx.fillRect(120, 175, 60, 45);
+  cx.fillStyle='#8b0000'; cx.font='7px Georgia';
+  cx.fillText('PATTO', 135, 192); cx.fillText('col', 143, 202); cx.fillText('DIAVOLO', 131, 212);
+  cx.fillStyle='#c00'; cx.font='10px Georgia'; cx.textAlign='center';
+  cx.fillText('Il Diavolo', 150, 210);
+}
+
+function drawOpenLetter2(cx, w, h, f) {
+  cx.fillStyle = '#05050f'; cx.fillRect(0,0,w,h);
+  const g = Math.sin(f*0.04)*0.2+0.8;
+  cx.fillStyle=`rgba(255,215,0,${0.05*g})`;
+  cx.fillRect(0,0,w,h);
+  cx.fillStyle='#f5e6c8'; cx.fillRect(35,20, 230, 170);
+  cx.strokeStyle='#ffd700'; cx.lineWidth=1.5; cx.strokeRect(35,20,230,170);
+  const lns = [
+    '\"Solo tu, Alchimista,',
+    'con la tua maschera magica,',
+    'puoi fermare il diavolo.',
+    ' ',
+    'La maschera ti permette di',
+    'tramutarti: Alchimista,',
+    'Cavaliere, Chierico.',
+    ' ',
+    'Entra nelle catacombe.',
+    'Ferma le orde infernali.',
+    'Salva Parigi.\"',
+  ];
+  cx.fillStyle='#2a1a0a'; cx.font='9px Georgia';
+  lns.forEach((l,i) => cx.fillText(l, 48, 42 + i*14));
+  cx.font='16px serif'; cx.fillText('🧪⚔️✝️', 115, 190);
+}
+
+function initCutscene() {
+  csIndex = 0; csAnimFrame = 0;
+  document.getElementById('cutscene').style.display = 'flex';
+  drawCutsceneFrame();
+  csInterval = setInterval(() => {
+    csAnimFrame++;
+    drawCutsceneFrame();
+  }, 50);
+  setTimeout(advanceCutscene, 4000);
+}
+
+function advanceCutscene() {
+  csIndex++;
+  if(csIndex >= CUTSCENE_SCRIPT.length) {
+    endCutscene(); return;
+  }
+  drawCutsceneFrame();
+  setTimeout(advanceCutscene, 4000);
+}
+
+function skipCutscene() {
+  clearInterval(csInterval);
+  endCutscene();
+}
+
+function endCutscene() {
+  clearInterval(csInterval);
+  document.getElementById('cutscene').style.display = 'none';
+  document.getElementById('overlay').style.display = 'flex';
+}
+
+const MASKS = [
+  {
+    name: 'Alchimista', icon: '🧪', color: '#4af',
+    maxHp: 100, speed: 2.8,
+    attackRange: 200, attackDamage: 18, attackCooldown: 600, attackType: 'ice',
+    abilityName: 'Bomba Acida', abilityCooldown: 5000, abilityType: 'acid',
+    weakEnemies: ['demon'],
+    desc: 'Spuntoni di ghiaccio a distanza'
+  },
+  {
+    name: 'Cavaliere', icon: '⚔️', color: '#fa4',
+    maxHp: 150, speed: 2.4,
+    attackRange: 70, attackDamage: 30, attackCooldown: 400, attackType: 'sword',
+    abilityName: 'Carica', abilityCooldown: 4000, abilityType: 'charge',
+    weakEnemies: ['skeleton'],
+    desc: 'Spada ravvicinata potente'
+  },
+  {
+    name: 'Chierico', icon: '✝️', color: '#af4',
+    maxHp: 120, speed: 2.5,
+    attackRange: 90, attackDamage: 20, attackCooldown: 800, attackType: 'holy',
+    abilityName: 'Recupero Vita', abilityCooldown: 6000, abilityType: 'heal',
+    weakEnemies: ['zombie'],
+    desc: 'Cerchio sacro ad area'
+  }
+];
+
+const ENEMY_TYPES = [
+  { type: 'demon', name: 'Demone', color: '#f44', hp: 60, speed: 1.3, dmg: 12, size: 14, icon: '👿' },
+  { type: 'skeleton', name: 'Scheletro', color: '#ddd', hp: 40, speed: 1.8, dmg: 8, size: 12, icon: '💀' },
+  { type: 'zombie', name: 'Non Morto', color: '#4a8', hp: 80, speed: 0.9, dmg: 15, size: 16, icon: '🧟' }
+];
+
+const WAVES = [
+  { count: 10, types: ['skeleton'], message: 'ORDA 1 - Scheletri!' },
+  { count: 15, types: ['demon'], message: 'ORDA 2 - Demoni dalle profondità!' },
+  { count: 12, types: ['zombie'], message: 'ORDA 3 - Non Morti!' },
+  { count: 20, types: ['skeleton', 'demon'], message: 'ORDA 4 - Assalto combinato!' },
+  { count: 25, types: ['demon', 'zombie', 'skeleton'], message: 'ORDA FINALE - Il cancello si apre!' }
+];
+
+let gameState = 'cutscene'; 
+let player, enemies, projectiles, particles, effects;
+let currentMask = 0;
+let score = 0;
+let killCount = 0;
+let currentWave = 0;
+let enemiesKilledInWave = 0;
+let waveActive = false;
+let spawnTimer = 0;
+let spawnedInWave = 0;
+let attackTimer = 0;
+let abilityCooldownTimers = [0,0,0];
+let abilityCooldownMax = [5000,4000,6000];
+let hp = 100;
+let maxHp = 100;
+let mouseX = 400, mouseY = 300;
+let keys = {};
+let lastTime = 0;
+let animId = null;
+let waveMessageTimer = 0;
+let waveMessage = '';
+let hellGateX = 400, hellGateY = 120;
+
+const TILE_SIZE = 40;
+const MAP_W = 20, MAP_H = 15;
+let tiles = [];
+
+function generateMap() {
+  tiles = [];
+  for(let y=0;y<MAP_H;y++) {
+    tiles[y] = [];
+    for(let x=0;x<MAP_W;x++) {
+      if(x===0||y===0||x===MAP_W-1||y===MAP_H-1) tiles[y][x] = 1;
+      // pillars
+      else if(x%4===0 && y%4===0 && Math.random()<0.5) tiles[y][x] = 1;
+      else tiles[y][x] = 0;
+    }
+  }
+  for(let y=6;y<9;y++) for(let x=8;x<12;x++) tiles[y][x] = 0;
+  for(let y=1;y<4;y++) for(let x=8;x<12;x++) tiles[y][x] = 0;
+}
+
+function initPlayer() {
+  player = { x: 400, y: 300, size: 14 };
+}
+
+function startGame() {
+  document.getElementById('overlay').style.display = 'none';
+  document.getElementById('hud').style.display = 'flex';
+  generateMap();
+  initPlayer();
+  enemies = []; projectiles = []; particles = []; effects = [];
+  score = 0; killCount = 0; currentWave = 0; enemiesKilledInWave = 0;
+  waveActive = false; spawnTimer = 0; spawnedInWave = 0;
+  attackTimer = 0; abilityCooldownTimers = [0,0,0];
+  currentMask = 0;
+  hp = MASKS[0].maxHp; maxHp = MASKS[0].maxHp;
+  gameState = 'playing';
+  switchMask(0);
+  startWave(0);
+  if(animId) cancelAnimationFrame(animId);
+  lastTime = performance.now();
+  gameLoop(lastTime);
+}
+
+function restartGame() {
+  document.getElementById('gameover').style.display = 'none';
+  startGame();
+}
+
+function startWave(wi) {
+  currentWave = wi;
+  waveActive = true;
+  spawnedInWave = 0;
+  enemiesKilledInWave = 0;
+  spawnTimer = 0;
+  waveMessage = WAVES[wi].message;
+  waveMessageTimer = 180;
+  updateHUD();
+}
+
+function spawnEnemy(wi) {
+  const w = WAVES[wi];
+  const typeName = w.types[Math.floor(Math.random()*w.types.length)];
+  const tmpl = ENEMY_TYPES.find(e=>e.type===typeName);
+  const sx = hellGateX + (Math.random()-0.5)*100;
+  const sy = hellGateY + 20 + Math.random()*30;
+  enemies.push({
+    ...JSON.parse(JSON.stringify(tmpl)),
+    x: sx, y: sy,
+    maxHp: tmpl.hp,
+    stunTimer: 0,
+    id: Math.random()
+  });
+}
+
+function switchMask(i) {
+  currentMask = i;
+  const m = MASKS[i];
+  hp = Math.min(hp, m.maxHp);
+  maxHp = m.maxHp;
+  document.querySelectorAll('.mask-btn').forEach((b,j) => b.classList.toggle('active', j===i));
+  updateHUD();
+  addParticleRing(player.x, player.y, m.color, 20);
+}
+
+function updateHUD() {
+  document.getElementById('health-fill').style.width = (hp/maxHp*100)+'%';
+  document.getElementById('wave-info').textContent = currentWave < WAVES.length ? `ORDA ${currentWave+1} / ${WAVES.length}` : 'COMPLETATO';
+  document.getElementById('kill-counter').textContent = `💀 Uccisi: ${killCount}`;
+  document.getElementById('score').textContent = `⭐ ${score}`;
+  document.getElementById('ability-info').textContent = `[E] ${MASKS[currentMask].abilityName}`;
+  for(let i=0;i<3;i++) {
+    const pct = abilityCooldownTimers[i] > 0 ? (abilityCooldownTimers[i]/abilityCooldownMax[i]*100) : 0;
+    document.getElementById('cd'+i).style.width = pct+'%';
+  }
+}
+
+function addParticleRing(x, y, color, count) {
+  for(let i=0;i<count;i++) {
+    const a = (i/count)*Math.PI*2;
+    const sp = 2 + Math.random()*2;
+    particles.push({ x, y, vx: Math.cos(a)*sp, vy: Math.sin(a)*sp, color, life: 40, maxLife: 40, size: 3 });
+  }
+}
+
+function addParticle(x, y, color, count=8) {
+  for(let i=0;i<count;i++) {
+    const a = Math.random()*Math.PI*2;
+    const sp = 0.5 + Math.random()*2;
+    particles.push({ x, y, vx: Math.cos(a)*sp, vy: Math.sin(a)*sp, color, life: 25, maxLife: 25, size: 2 });
+  }
+}
+
+function playerAttack() {
+  const m = MASKS[currentMask];
+  if(m.attackType === 'ice') {
+    const dx = mouseX - player.x, dy = mouseY - player.y;
+    const dist = Math.sqrt(dx*dx+dy*dy)||1;
+    projectiles.push({
+      x: player.x, y: player.y,
+      vx: (dx/dist)*6, vy: (dy/dist)*6,
+      type: 'ice', dmg: m.attackDamage,
+      color: '#4af', size: 7, life: 60, owner: 'player',
+      weakBonus: m.weakEnemies
+    });
+  } else if(m.attackType === 'sword') {
+  
+    effects.push({ type: 'slash', x: player.x, y: player.y, angle: Math.atan2(mouseY-player.y, mouseX-player.x), life: 15, maxLife: 15, color: '#fa4' });
+    const range = m.attackRange;
+    enemies.forEach(e => {
+      const dx = e.x-player.x, dy = e.y-player.y;
+      if(Math.sqrt(dx*dx+dy*dy) < range) {
+        const bonus = m.weakEnemies.includes(e.type) ? 1.5 : 1;
+        e.hp -= m.attackDamage * bonus;
+        addParticle(e.x, e.y, '#fa4');
+        if(e.hp<=0) killEnemy(e);
+      }
+    });
+  } else if(m.attackType === 'holy') {
+    effects.push({ type: 'holycircle', x: player.x, y: player.y, life: 30, maxLife: 30, color: '#af4', r: m.attackRange });
+    enemies.forEach(e => {
+      const dx = e.x-player.x, dy = e.y-player.y;
+      if(Math.sqrt(dx*dx+dy*dy) < m.attackRange) {
+        const bonus = m.weakEnemies.includes(e.type) ? 1.5 : 1;
+        e.hp -= m.attackDamage * bonus;
+        addParticle(e.x, e.y, '#af4');
+        if(e.hp<=0) killEnemy(e);
+      }
+    });
+  }
+}
+
+function useAbility() {
+  const m = MASKS[currentMask];
+  if(abilityCooldownTimers[currentMask] > 0) return;
+  abilityCooldownTimers[currentMask] = abilityCooldownMax[currentMask];
+
+  if(m.abilityType === 'acid') {
+  
+    effects.push({ type: 'acid', x: mouseX, y: mouseY, life: 60, maxLife: 60, color: '#8f0', r: 70 });
+    enemies.forEach(e => {
+      const dx=e.x-mouseX, dy=e.y-mouseY;
+      if(Math.sqrt(dx*dx+dy*dy)<70) {
+        const bonus = m.weakEnemies.includes(e.type)?2:1;
+        e.hp -= 50*bonus;
+        addParticle(e.x,e.y,'#8f0',12);
+        if(e.hp<=0) killEnemy(e);
+      }
+    });
+  } else if(m.abilityType === 'charge') {
+    
+    const dx=mouseX-player.x, dy=mouseY-player.y, dist=Math.sqrt(dx*dx+dy*dy)||1;
+    const dist2 = Math.min(dist, 200);     
+    const tx = player.x + (dx/dist)*dist2;
+    const ty = player.y + (dy/ in wall dist)*dist2;
+    
+    player.x = tx; player.y = ty;
+    addParticleRing(player.x, player.y, '#fa4', 16);
+    enemies.forEach(e => {
+      const edx=e.x-player.x, edy=e.y-player.y;
+      if(Math.sqrt(edx*edx+edy*edy)<50) {
+        e.hp -= 40;
+        if(e.hp<=0) killEnemy(e);
+      }
+    });
+  } else if(m.abilityType === 'heal') {
+    hp = Math.min(maxHp, hp + 50);
+    addParticleRing(player.x, player.y, '#af4', 24);
+  }
+}
+
+function killEnemy(e) {
+  enemies = enemies.filter(x=>x!==e);
+  killCount++;
+  enemiesKilledInWave++;
+  score += 100;
+  addParticle(e.x, e.y, e.color, 12);
+  // check wave completion
+  if(enemiesKilledInWave >= WAVES[currentWave].count && spawnedInWave >= WAVES[currentWave].count) {
+    nextWave();
+  }
+}
+
+function nextWave() {
+  waveActive = false;
+  const next = currentWave + 1;
+  if(next >= WAVES.length) {
+    setTimeout(winGame, 1500);
+  } else {
+    setTimeout(() => startWave(next), 2000);
+    showNarrator(next === WAVES.length-1 ? "Il cancello si apre al massimo! Tieni duro!" : "Orda sconfitta! Preparati per la prossima...", 2000);
+  }
+}
+
+function winGame() {
+  gameState = 'win';
+  const go = document.getElementById('gameover');
+  go.style.display = 'flex';
+  document.getElementById('end-title').textContent = 'VITTORIA!';
+  document.getElementById('end-title').style.color = '#ffd700';
+  document.getElementById('end-title').style.textShadow = '0 0 20px #ffd700';
+  document.getElementById('end-text').textContent = `Hai fermato il diavolo! Parigi è salva! Score: ${score} | Nemici: ${killCount}`;
+  document.getElementById('hud').style.display = 'none';
+}
+
+function gameOver() {
+  gameState = 'gameover';
+  const go = document.getElementById('gameover');
+  go.style.display = 'flex';
+  document.getElementById('end-title').textContent = 'SCONFITTO';
+  document.getElementById('end-title').style.color = '#f44';
+  document.getElementById('end-title').style.textShadow = '0 0 20px #f00';
+  document.getElementById('end-text').textContent = `Parigi è perduta... Score: ${score} | Nemici: ${killCount}`;
+  document.getElementById('hud').style.display = 'none';
+}
+
+function showNarrator(text, duration=3000) {
+  const el = document.getElementById('narrator');
+  el.textContent = text;
+  el.classList.add('visible');
+  setTimeout(() => el.classList.remove('visible'), duration);
+}
+
+function isTileBlocked(px, py) {
+  const tx = Math.floor(px/TILE_SIZE);
+  const ty = Math.floor(py/TILE_SIZE);
+  if(tx<0||ty<0||tx>=MAP_W||ty>=MAP_H) return true;
+  return tiles[ty][tx] === 1;
+}
+
+function clampToMap(x, y, size) {
+  const margin = size;
+  return {
+    x: Math.max(margin, Math.min(MAP_W*TILE_SIZE - margin, x)),
+    y: Math.max(margin, Math.min(MAP_H*TILE_SIZE - margin, y))
+  };
+}
+
+let globalTime = 0;
+
+function update(dt) {
+  if(gameState !== 'playing') return;
+  globalTime += dt;
+
+  // Cooldowns
+  for(let i=0;i<3;i++) {
+    if(abilityCooldownTimers[i]>0) abilityCooldownTimers[i] = Math.max(0, abilityCooldownTimers[i]-dt);
+  }
+  attackTimer = Math.max(0, attackTimer-dt);
+  if(waveMessageTimer>0) waveMessageTimer--;
+
+  // Player movement
+  const m = MASKS[currentMask];
+  let dx=0, dy=0;
+  if(keys['w']||keys['arrowup']) dy=-1;
+  if(keys['s']||keys['arrowdown']) dy=1;
+  if(keys['a']||keys['arrowleft']) dx=-1;
+  if(keys['d']||keys['arrowright']) dx=1;
+  if(dx&&dy) { dx*=0.707; dy*=0.707; }
+  const nx = player.x + dx*m.speed*(dt/16);
+  const ny = player.y + dy*m.speed*(dt/16);
+  if(!isTileBlocked(nx, player.y)) player.x = nx;
+  if(!isTileBlocked(player.x, ny)) player.y = ny;
+  const clamped = clampToMap(player.x, player.y, player.size);
+  player.x = clamped.x; player.y = clamped.y;
+
+  // Auto attack (hold mouse button handled via attackTimer)
+  if(mouseDown && attackTimer<=0) {
+    attackTimer = m.attackCooldown;
+    playerAttack();
+  }
+
+  // Spawn enemies
+  if(waveActive && spawnedInWave < WAVES[currentWave].count) {
+    spawnTimer -= dt;
+    if(spawnTimer <= 0) {
+      spawnEnemy(currentWave);
+      spawnedInWave++;
+      spawnTimer = 800 + Math.random()*400;
+    }
+  }
+
+  // Update enemies
+  enemies.forEach(e => {
+    if(e.stunTimer>0) { e.stunTimer-=dt; return; }
+    const edx = player.x-e.x, edy = player.y-e.y;
+    const edist = Math.sqrt(edx*edx+edy*edy)||1;
+    e.x += (edx/edist)*e.speed*(dt/16);
+    e.y += (edy/edist)*e.speed*(dt/16);
+    // player damage
+    if(edist < player.size + e.size) {
+      hp -= e.dmg * (dt/1000);
+      if(hp<=0) { hp=0; gameOver(); }
+    }
+  });
+
+  // Update projectiles
+  projectiles.forEach(p => {
+    p.x += p.vx*(dt/16); p.y += p.vy*(dt/16);
+    p.life -= dt/16;
+    if(isTileBlocked(p.x, p.y)) { p.life=0; return; }
+    // hit enemy
+    enemies.forEach(e => {
+      const edx=e.x-p.x, edy=e.y-p.y;
+      if(Math.sqrt(edx*edx+edy*edy) < e.size+p.size) {
+        const bonus = p.weakBonus && p.weakBonus.includes(e.type) ? 1.5 : 1;
+        e.hp -= p.dmg * bonus;
+        addParticle(e.x, e.y, p.color);
+        p.life = 0;
+        if(e.hp<=0) killEnemy(e);
+      }
+    });
+  });
+  projectiles = projectiles.filter(p=>p.life>0);
+
+  // Update particles
+  particles.forEach(p => {
+    p.x+=p.vx; p.y+=p.vy; p.life--;
+    p.vx*=0.95; p.vy*=0.95;
+  });
+  particles = particles.filter(p=>p.life>0);
+
+  // Update effects
+  effects.forEach(e => e.life--);
+  effects = effects.filter(e=>e.life>0);
+
+  updateHUD();
+}
+
+function draw() {
+  ctx.clearRect(0,0,800,600);
+
+  // Draw tilemap
+  for(let y=0;y<MAP_H;y++) {
+    for(let x=0;x<MAP_W;x++) {
+      const px = x*TILE_SIZE, py = y*TILE_SIZE;
+      if(tiles[y][x]===1) {
+        // stone wall
+        const c = (x+y)%2===0 ? '#2a2030' : '#221828';
+        ctx.fillStyle = c; ctx.fillRect(px,py,TILE_SIZE,TILE_SIZE);
+        ctx.strokeStyle='#1a1020'; ctx.lineWidth=1; ctx.strokeRect(px,py,TILE_SIZE,TILE_SIZE);
+      } else {
+        // floor
+        const c = (x+y)%2===0 ? '#1a1428' : '#181226';
+        ctx.fillStyle = c; ctx.fillRect(px,py,TILE_SIZE,TILE_SIZE);
+        // subtle crack
+        if((x*7+y*3)%11===0) {
+          ctx.strokeStyle='rgba(0,0,0,0.3)'; ctx.lineWidth=1;
+          ctx.beginPath(); ctx.moveTo(px+5,py+5); ctx.lineTo(px+15,py+18); ctx.stroke();
+        }
+      }
+    }
+  }
+
+  // Hell Gate
+  const gp = Math.sin(globalTime*0.003)*0.3+0.7;
+  const gg = ctx.createRadialGradient(hellGateX, hellGateY, 5, hellGateX, hellGateY, 50);
+  gg.addColorStop(0, `rgba(200,0,0,${0.8*gp})`);
+  gg.addColorStop(0.5, `rgba(100,0,0,${0.4*gp})`);
+  gg.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle=gg; ctx.fillRect(hellGateX-50, hellGateY-50, 100, 100);
+  // gate arch
+  ctx.strokeStyle=`rgba(200,50,0,${gp})`; ctx.lineWidth=3;
+  ctx.beginPath(); ctx.arc(hellGateX, hellGateY+10, 35, Math.PI, 0); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(hellGateX-35, hellGateY+10); ctx.lineTo(hellGateX-35, hellGateY+45);
+  ctx.moveTo(hellGateX+35, hellGateY+10); ctx.lineTo(hellGateX+35, hellGateY+45); ctx.stroke();
+  ctx.fillStyle=`rgba(255,100,0,${gp})`;
+  ctx.font='20px serif'; ctx.textAlign='center'; ctx.fillText('🔥', hellGateX, hellGateY+5);
+
+  // Effects
+  effects.forEach(e => {
+    const a = e.life/e.maxLife;
+    if(e.type==='slash') {
+      ctx.save(); ctx.translate(e.x, e.y); ctx.rotate(e.angle);
+      ctx.strokeStyle=`rgba(250,170,50,${a})`; ctx.lineWidth=4;
+      ctx.beginPath(); ctx.arc(0,0,60, -0.4, 0.4); ctx.stroke();
+      ctx.restore();
+    } else if(e.type==='holycircle') {
+      ctx.strokeStyle=`rgba(180,255,100,${a})`; ctx.lineWidth=3;
+      ctx.beginPath(); ctx.arc(e.x, e.y, e.r*(1-a*0.3), 0, Math.PI*2); ctx.stroke();
+      ctx.fillStyle=`rgba(180,255,100,${a*0.1})`; ctx.fill();
+    } else if(e.type==='acid') {
+      ctx.fillStyle=`rgba(100,255,0,${a*0.2})`; 
+      ctx.beginPath(); ctx.arc(e.x,e.y,e.r,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle=`rgba(100,255,0,${a})`; ctx.lineWidth=2; ctx.stroke();
+    }
+  });
+
+  // Particles
+  particles.forEach(p => {
+    const a = p.life/p.maxLife;
+    ctx.globalAlpha=a;
+    ctx.fillStyle=p.color;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,Math.PI*2); ctx.fill();
+  });
+  ctx.globalAlpha=1;
+
+  // Enemies
+  enemies.forEach(e => {
+    // shadow
+    ctx.fillStyle='rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(e.x, e.y+e.size, e.size, e.size*0.4, 0, 0, Math.PI*2); ctx.fill();
+    // body
+    ctx.fillStyle=e.color;
+    ctx.beginPath(); ctx.arc(e.x, e.y, e.size, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle='rgba(0,0,0,0.5)'; ctx.lineWidth=1.5; ctx.stroke();
+    // icon
+    ctx.font=`${e.size+4}px serif`; ctx.textAlign='center';
+    ctx.fillText(e.icon, e.x, e.y+e.size*0.4);
+    // hp bar
+    const bw=e.size*2.2, bh=3;
+    ctx.fillStyle='#333'; ctx.fillRect(e.x-bw/2, e.y-e.size-8, bw, bh);
+    ctx.fillStyle='#f44'; ctx.fillRect(e.x-bw/2, e.y-e.size-8, bw*(e.hp/e.maxHp), bh);
+  });
+
+  // Projectiles
+  projectiles.forEach(p => {
+    ctx.shadowColor=p.color; ctx.shadowBlur=8;
+    ctx.fillStyle=p.color;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
+    ctx.shadowBlur=0;
+  });
+
+  // Player
+  const pm = MASKS[currentMask];
+  // shadow
+  ctx.fillStyle='rgba(0,0,0,0.4)'; ctx.beginPath(); ctx.ellipse(player.x, player.y+player.size, player.size, player.size*0.4, 0, 0, Math.PI*2); ctx.fill();
+  // glow
+  ctx.shadowColor=pm.color; ctx.shadowBlur=15;
+  ctx.fillStyle=pm.color; ctx.beginPath(); ctx.arc(player.x, player.y, player.size, 0, Math.PI*2); ctx.fill();
+  ctx.shadowBlur=0;
+  ctx.strokeStyle='rgba(255,255,255,0.6)'; ctx.lineWidth=2; ctx.stroke();
+  // player icon
+  ctx.font=`${player.size+6}px serif`; ctx.textAlign='center';
+  ctx.fillText(pm.icon, player.x, player.y+player.size*0.4);
+
+  // Attack range hint (faint)
+  if(pm.attackType !== 'ice') {
+    ctx.strokeStyle=`rgba(255,255,255,0.08)`; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.arc(player.x, player.y, pm.attackRange, 0, Math.PI*2); ctx.stroke();
+  }
+
+  // Wave message
+  if(waveMessageTimer > 0) {
+    const a = Math.min(1, waveMessageTimer/30);
+    ctx.globalAlpha = a;
+    ctx.fillStyle='rgba(0,0,0,0.7)';
+    ctx.font='bold 22px Georgia'; ctx.textAlign='center';
+    const tw = ctx.measureText(waveMessage).width;
+    ctx.fillRect(400-tw/2-16, 255, tw+32, 40);
+    ctx.fillStyle='#ffd700';
+    ctx.fillText(waveMessage, 400, 282);
+    ctx.globalAlpha=1;
+  }
+}
+
+function gameLoop(timestamp) {
+  const dt = Math.min(timestamp - lastTime, 50);
+  lastTime = timestamp;
+  update(dt);
+  draw();
+  animId = requestAnimationFrame(gameLoop);
+}
+
+// Input
+let mouseDown = false;
+canvas.addEventListener('mousemove', e => {
+  const r = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / r.width;
+  const scaleY = canvas.height / r.height;
+  mouseX = (e.clientX - r.left) * scaleX;
+  mouseY = (e.clientY - r.top) * scaleY;
+});
+canvas.addEventListener('mousedown', e => { mouseDown = true; e.preventDefault(); });
+canvas.addEventListener('mouseup', () => mouseDown = false);
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+document.addEventListener('keydown', e => {
+  keys[e.key.toLowerCase()] = true;
+  if(e.key==='1') switchMask(0);
+  if(e.key==='2') switchMask(1);
+  if(e.key==='3') switchMask(2);
+  if(e.key.toLowerCase()==='e') useAbility();
+  if(e.key===' ' && gameState==='cutscene') skipCutscene();
+  e.preventDefault();
+});
+document.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+
+// Resize canvas to fit window
+function resizeCanvas() {
+  const scale = Math.min(window.innerWidth/800, window.innerHeight/600);
+  canvas.style.width = (800*scale)+'px';
+  canvas.style.height = (600*scale)+'px';
+  document.getElementById('ui').style.transform = `translateX(-50%) scale(${scale})`;
+  document.getElementById('ui').style.transformOrigin = 'top center';
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+// Start
+initCutscene();
+</script>
+</body>
+</html>
