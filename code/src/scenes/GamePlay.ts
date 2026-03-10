@@ -1,4 +1,5 @@
 import { GameData } from "../GameData";
+import PlayerVignettePostFX from "../pipelines/PlayerVignettePostFX";
 
 export default class GamePlay extends Phaser.Scene {
   private player: Phaser.Physics.Arcade.Sprite & { hp: number; isInvulnerable: boolean };
@@ -13,16 +14,18 @@ export default class GamePlay extends Phaser.Scene {
   // UI
   private playerHealthBar: Phaser.GameObjects.Graphics;
   private abilityText: Phaser.GameObjects.Text;
-  private sprintText: Phaser.GameObjects.Text;
+  private dashText: Phaser.GameObjects.Text;
   private objectiveText: Phaser.GameObjects.Text;
   private hudCamera: Phaser.Cameras.Scene2D.Camera;
 
   // Game Logic
   private currentAbility: "punch" | "shoot" = "punch";
-  private isSprinting: boolean = false;
-  private canSprint: boolean = true;
   private normalSpeed: number = 200;
-  private sprintSpeed: number = 400;
+  private isDashing: boolean = false;
+  private canDash: boolean = true;
+  private dashSpeed: number = 750;
+  private dashDurationMs: number = 160;
+  private dashCooldownMs: number = 900;
 
   private enemiesKilled: number = 0;
   private targetKills: number = 15;
@@ -46,10 +49,29 @@ export default class GamePlay extends Phaser.Scene {
   private lastDirection: Phaser.Math.Vector2 = new Phaser.Math.Vector2(1, 0);
   private escKey: Phaser.Input.Keyboard.Key;
 
+  // Vignette post-processing
+  private vignetteFx?: PlayerVignettePostFX;
+  private vignetteRadius: number = 0.45;   // 0..1 in screen UV space
+  private vignetteIntensity: number = 0.85; // 0..1
+  private vignetteMaskKey: string = "vignette-mask";
+  private vignetteRadiusDownKey: Phaser.Input.Keyboard.Key;
+  private vignetteRadiusUpKey: Phaser.Input.Keyboard.Key;
+  private vignetteIntensityDownKey: Phaser.Input.Keyboard.Key;
+  private vignetteIntensityUpKey: Phaser.Input.Keyboard.Key;
+
+  // Light mask overlay (Graphics mask + MULTIPLY overlay)
+  private darknessOverlay: Phaser.GameObjects.Rectangle;
+  private lightMaskGraphics: Phaser.GameObjects.Graphics;
+  private lightRadiusPx: number = 240;
+  private fogFeatherPx: number = 180;
+  private darknessAlpha: number = 1;
+
+  /** Scene constructor (key: GamePlay). */
   constructor() {
     super({ key: "GamePlay" });
   }
 
+  /** Creates the level, player, UI, cameras, enemies, and post-processing. */
   create() {
     this.isGameOver = false;
     this.enemiesKilled = 0;
@@ -106,36 +128,102 @@ export default class GamePlay extends Phaser.Scene {
 
     this.cameras.main.ignore(this.playerHealthBar);
     this.cameras.main.ignore(this.abilityText);
-    this.cameras.main.ignore(this.sprintText);
+    this.cameras.main.ignore(this.dashText);
     this.cameras.main.ignore(this.objectiveText);
     this.cameras.main.ignore(this.pauseOverlay);
     this.cameras.main.ignore(this.waveText);
     this.cameras.main.ignore(this.scoreText);
 
     if (!this.anims.exists("mago-idle")) {
-      this.anims.create({
-        key: "mago-idle",
-        frames: this.anims.generateFrameNumbers("mago", { start: 0, end: 5 }),
-        frameRate: 10,
-        repeat: -1,
-      });
+      this.anims.create({ key: "mago-idle", frames: this.anims.generateFrameNumbers("mago", { start: 0, end: 7 }), frameRate: 8, repeat: -1 });
+    }
+    if (!this.anims.exists("mago-walk")) {
+      this.anims.create({ key: "mago-walk", frames: this.anims.generateFrameNumbers("mago_walk", { start: 0, end: 6 }), frameRate: 8, repeat: -1 });
+    }
+    if (!this.anims.exists("mago-run")) {
+      this.anims.create({ key: "mago-run", frames: this.anims.generateFrameNumbers("mago_run", { start: 0, end: 7 }), frameRate: 10, repeat: -1 });
+    }
+    if (!this.anims.exists("mago-attack-1")) {
+      this.anims.create({ key: "mago-attack-1", frames: this.anims.generateFrameNumbers("mago_attack_1", { start: 0, end: 6 }), frameRate: 12, repeat: 0 });
+    }
+    if (!this.anims.exists("mago-attack-2")) {
+      this.anims.create({ key: "mago-attack-2", frames: this.anims.generateFrameNumbers("mago_attack_2", { start: 0, end: 8 }), frameRate: 12, repeat: 0 });
+    }
+    // Projectile animation for the mago (Wizzard/Charge_1.png)
+    if (!this.anims.exists("mago-projectile")) {
+      this.anims.create({ key: "mago-projectile", frames: this.anims.generateFrameNumbers("mago_charge_1", { start: 0, end: 8 }), frameRate: 14, repeat: -1 });
+    }
+    if (!this.anims.exists("mago-charge")) {
+      this.anims.create({ key: "mago-charge", frames: this.anims.generateFrameNumbers("mago_charge_2", { start: 0, end: 2 }), frameRate: 10, repeat: 0 });
+    }
+    if (!this.anims.exists("mago-hurt")) {
+      this.anims.create({ key: "mago-hurt", frames: this.anims.generateFrameNumbers("mago_hurt", { start: 0, end: 3 }), frameRate: 12, repeat: 0 });
+    }
+    if (!this.anims.exists("mago-dead")) {
+      this.anims.create({ key: "mago-dead", frames: this.anims.generateFrameNumbers("mago_dead", { start: 0, end: 3 }), frameRate: 8, repeat: 0 });
     }
 
+    // Scheletro animations (loaded from assets/images/Scheletro/)
+    if (!this.anims.exists("scheletro-idle")) {
+      this.anims.create({ key: "scheletro-idle", frames: this.anims.generateFrameNumbers("scheletro_idle", { start: 0, end: 6 }), frameRate: 8, repeat: -1 });
+    }
+    if (!this.anims.exists("scheletro-walk")) {
+      this.anims.create({ key: "scheletro-walk", frames: this.anims.generateFrameNumbers("scheletro_walk", { start: 0, end: 6 }), frameRate: 8, repeat: -1 });
+    }
     if (!this.anims.exists("scheletro-run")) {
-      this.anims.create({
-        key: "scheletro-run",
-        frames: this.anims.generateFrameNumbers("scheletro_run", { start: 0, end: 6 }),
-        frameRate: 8,
-        repeat: -1,
-      });
+      this.anims.create({ key: "scheletro-run", frames: this.anims.generateFrameNumbers("scheletro_run", { start: 0, end: 7 }), frameRate: 10, repeat: -1 });
+    }
+    if (!this.anims.exists("scheletro-run-attack")) {
+      this.anims.create({ key: "scheletro-run-attack", frames: this.anims.generateFrameNumbers("scheletro_run_attack", { start: 0, end: 6 }), frameRate: 12, repeat: 0 });
+    }
+    if (!this.anims.exists("scheletro-attack-1")) {
+      this.anims.create({ key: "scheletro-attack-1", frames: this.anims.generateFrameNumbers("scheletro_attack_1", { start: 0, end: 4 }), frameRate: 12, repeat: 0 });
+    }
+    if (!this.anims.exists("scheletro-attack-2")) {
+      this.anims.create({ key: "scheletro-attack-2", frames: this.anims.generateFrameNumbers("scheletro_attack_2", { start: 0, end: 5 }), frameRate: 12, repeat: 0 });
+    }
+    if (!this.anims.exists("scheletro-attack-3")) {
+      this.anims.create({ key: "scheletro-attack-3", frames: this.anims.generateFrameNumbers("scheletro_attack_3", { start: 0, end: 3 }), frameRate: 12, repeat: 0 });
+    }
+    if (!this.anims.exists("scheletro-hurt")) {
+      this.anims.create({ key: "scheletro-hurt", frames: this.anims.generateFrameNumbers("scheletro_hurt", { start: 0, end: 1 }), frameRate: 12, repeat: 0 });
+    }
+    if (!this.anims.exists("scheletro-dead")) {
+      this.anims.create({ key: "scheletro-dead", frames: this.anims.generateFrameNumbers("scheletro_dead", { start: 0, end: 3 }), frameRate: 8, repeat: 0 });
+    }
+    if (!this.anims.exists("scheletro-protect")) {
+      this.anims.create({ key: "scheletro-protect", frames: this.anims.generateFrameNumbers("scheletro_protect", { start: 0, end: 0 }), frameRate: 1, repeat: -1 });
+    }
+    // Demon animations (loaded from assets/images/Demon/)
+    if (!this.anims.exists("demon-idle")) {
+      this.anims.create({ key: "demon-idle", frames: this.anims.generateFrameNumbers("demon_idle", { start: 0, end: 5 }), frameRate: 8, repeat: -1 });
+    }
+    if (!this.anims.exists("demon-idle-2")) {
+      this.anims.create({ key: "demon-idle-2", frames: this.anims.generateFrameNumbers("demon_idle_2", { start: 0, end: 4 }), frameRate: 8, repeat: -1 });
+    }
+    if (!this.anims.exists("demon-walk")) {
+      this.anims.create({ key: "demon-walk", frames: this.anims.generateFrameNumbers("demon_walk", { start: 0, end: 7 }), frameRate: 8, repeat: -1 });
     }
     if (!this.anims.exists("demon-run")) {
-      this.anims.create({
-        key: "demon-run",
-        frames: this.anims.generateFrameNumbers("demon_run", { start: 0, end: 6 }),
-        frameRate: 8,
-        repeat: -1,
-      });
+      this.anims.create({ key: "demon-run", frames: this.anims.generateFrameNumbers("demon_run", { start: 0, end: 7 }), frameRate: 10, repeat: -1 });
+    }
+    if (!this.anims.exists("demon-jump")) {
+      this.anims.create({ key: "demon-jump", frames: this.anims.generateFrameNumbers("demon_jump", { start: 0, end: 14 }), frameRate: 15, repeat: 0 });
+    }
+    if (!this.anims.exists("demon-attack-1")) {
+      this.anims.create({ key: "demon-attack-1", frames: this.anims.generateFrameNumbers("demon_attack_1", { start: 0, end: 2 }), frameRate: 12, repeat: 0 });
+    }
+    if (!this.anims.exists("demon-attack-2")) {
+      this.anims.create({ key: "demon-attack-2", frames: this.anims.generateFrameNumbers("demon_attack_2", { start: 0, end: 5 }), frameRate: 12, repeat: 0 });
+    }
+    if (!this.anims.exists("demon-attack-3")) {
+      this.anims.create({ key: "demon-attack-3", frames: this.anims.generateFrameNumbers("demon_attack_3", { start: 0, end: 3 }), frameRate: 12, repeat: 0 });
+    }
+    if (!this.anims.exists("demon-hurt")) {
+      this.anims.create({ key: "demon-hurt", frames: this.anims.generateFrameNumbers("demon_hurt", { start: 0, end: 2 }), frameRate: 12, repeat: 0 });
+    }
+    if (!this.anims.exists("demon-dead")) {
+      this.anims.create({ key: "demon-dead", frames: this.anims.generateFrameNumbers("demon_dead", { start: 0, end: 5 }), frameRate: 8, repeat: 0 });
     }
 
     for (let i = 0; i < 5; i++) {
@@ -177,6 +265,28 @@ export default class GamePlay extends Phaser.Scene {
     this.physics.add.collider(this.player, this.enemies, (_p: any, e: any) => {
       const dmg = e.type === "demon" ? 15 : e.type === "mago" ? 8 : 5;
       this.handlePlayerDamage(dmg);
+
+      // Scheletro: mostra un attacco quando entra in contatto (throttled per evitare spam)
+      if (e.type === "skeleton" && e.active && !e.isDying) {
+        if (e.lastContactAnimTime === undefined) e.lastContactAnimTime = 0;
+        const now = this.time.now;
+        if (now > e.lastContactAnimTime + 500) {
+          e.lastContactAnimTime = now;
+          const n = Phaser.Math.Between(1, 3);
+          e.play(`scheletro-attack-${n}`, true);
+        }
+      }
+
+      // Demon: mostra un attacco al contatto (throttled)
+      if (e.type === "demon" && e.active && !e.isDying) {
+        if (e.lastContactAnimTime === undefined) e.lastContactAnimTime = 0;
+        const now = this.time.now;
+        if (now > e.lastContactAnimTime + 700) {
+          e.lastContactAnimTime = now;
+          const n = Phaser.Math.Between(1, 3);
+          e.play(`demon-attack-${n}`, true);
+        }
+      }
     });
 
     this.physics.add.overlap(this.player, this.healthPickups, (_p: any, pickup: any) => {
@@ -198,6 +308,12 @@ export default class GamePlay extends Phaser.Scene {
     this.escKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
     this.input.keyboard.addCapture([Phaser.Input.Keyboard.KeyCodes.TAB, Phaser.Input.Keyboard.KeyCodes.ESC]);
 
+    // Vignette controls
+    this.vignetteRadiusDownKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Q);
+    this.vignetteRadiusUpKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
+    this.vignetteIntensityDownKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Z);
+    this.vignetteIntensityUpKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.C);
+
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
       if (pointer.leftButtonDown()) {
         this.performAttack();
@@ -210,8 +326,12 @@ export default class GamePlay extends Phaser.Scene {
 
     // Mostra banner wave all'inizio
     this.time.delayedCall(400, () => this.showWaveBanner(this.waveNumber));
+
+    // Dynamic light mask overlay (main camera only)
+    this.setupLightMask();
   }
 
+  /** Applies damage to the player with brief invulnerability, UI update, and game-over check. */
   handlePlayerDamage(damage: number = 10) {
     if (!this.player.isInvulnerable && !this.isGameOver) {
       this.player.hp -= damage;
@@ -230,6 +350,7 @@ export default class GamePlay extends Phaser.Scene {
     }
   }
 
+  /** Toggles pause state, stopping physics, animations, timers, and music. */
   togglePause() {
     if (this.isGameOver) return;
     this.isPaused = !this.isPaused;
@@ -253,6 +374,7 @@ export default class GamePlay extends Phaser.Scene {
     }
   }
 
+  /** Builds the pause overlay UI. */
   setupPauseUI() {
     const bg = this.add.rectangle(0, 0, GameData.globals.gameWidth, GameData.globals.gameHeight, 0x000000, 0.5).setOrigin(0);
     const text = this.add.text(GameData.globals.gameWidth / 2, GameData.globals.gameHeight / 2, "PAUSA", { fontSize: "64px", color: "#ffffff" }).setOrigin(0.5);
@@ -260,8 +382,9 @@ export default class GamePlay extends Phaser.Scene {
     this.pauseOverlay = this.add.container(0, 0, [bg, text, subText]).setScrollFactor(0).setDepth(3000).setVisible(false);
   }
 
+  /** Executes the current player ability (punch or shoot) towards the pointer direction. */
   performAttack() {
-    if (this.isGameOver || this.isPaused) return;
+    if (this.isGameOver || this.isPaused || this.isDashing) return;
 
     const pointer = this.input.activePointer;
     const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, pointer.worldX, pointer.worldY);
@@ -284,16 +407,18 @@ export default class GamePlay extends Phaser.Scene {
     }
   }
 
+  /** Creates the HUD elements (health bar, ability text, dash, objective, wave, score). */
   setupUI() {
     this.playerHealthBar = this.add.graphics().setScrollFactor(0).setDepth(1000);
     this.updatePlayerHealthBar();
     this.abilityText = this.add.text(20, 50, "Abilità: PUGNO [TAB/LMB]", { fontSize: "20px", color: "#ffffff" }).setScrollFactor(0).setDepth(1000);
-    this.sprintText = this.add.text(20, 80, "Sprint: PRONTO [SHIFT]", { fontSize: "20px", color: "#00ff00" }).setScrollFactor(0).setDepth(1000);
+    this.dashText = this.add.text(20, 80, "Scatto: PRONTO [SHIFT]", { fontSize: "20px", color: "#00ff00" }).setScrollFactor(0).setDepth(1000);
     this.objectiveText = this.add.text(GameData.globals.gameWidth - 300, 20, `Obiettivo: 0/${this.targetKills}`, { fontSize: "24px", color: "#ffffff", backgroundColor: "#00000066" }).setScrollFactor(0).setDepth(1000);
     this.waveText = this.add.text(GameData.globals.gameWidth / 2, 20, `Wave ${this.waveNumber}`, { fontSize: "22px", color: "#ffaa00", stroke: "#000000", strokeThickness: 3 }).setOrigin(0.5).setScrollFactor(0).setDepth(1000);
     this.scoreText = this.add.text(GameData.globals.gameWidth - 300, 52, "Score: 0", { fontSize: "20px", color: "#ffffff", backgroundColor: "#00000066" }).setScrollFactor(0).setDepth(1000);
   }
 
+  /** Defines player animations (walk, punch, shoot) once. */
   setupPlayerAnims() {
     if (!this.anims.exists("walk")) {
       this.anims.create({ key: "walk", frames: this.anims.generateFrameNumbers("player", { start: 10, end: 17 }), frameRate: 10, repeat: -1 });
@@ -302,6 +427,148 @@ export default class GamePlay extends Phaser.Scene {
     }
   }
 
+  /** Ensures the vignette mask texture exists (fallback: generate a canvas texture). */
+  private ensureVignetteMaskTexture(key: string, size: number = 512) {
+    if (this.textures.exists(key)) return;
+
+    const tex = this.textures.createCanvas(key, size, size);
+    const ctx = tex.getContext();
+
+    // Alpha 0 al centro, alpha 1 ai bordi: usiamo l'alpha come "darkness mask" nello shader.
+    ctx.clearRect(0, 0, size, size);
+    const g = ctx.createRadialGradient(size / 2, size / 2, size * 0.12, size / 2, size / 2, size / 2);
+    g.addColorStop(0.0, "rgba(0,0,0,0)");
+    g.addColorStop(0.55, "rgba(0,0,0,0)");
+    g.addColorStop(1.0, "rgba(0,0,0,1)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, size, size);
+    tex.refresh();
+  }
+
+  /** Registers and applies the vignette PostFX pipeline to the main camera. */
+  private setupVignetteFx() {
+    // WebGL only. In canvas renderer, pipelines are not available.
+    const renderer: any = this.sys.renderer as any;
+    if (!renderer?.pipelines?.addPostPipeline) return;
+
+    this.ensureVignetteMaskTexture(this.vignetteMaskKey);
+    renderer.pipelines.addPostPipeline("PlayerVignette", PlayerVignettePostFX);
+
+    this.cameras.main.setPostPipeline("PlayerVignette");
+    const got = this.cameras.main.getPostPipeline("PlayerVignette") as unknown;
+    const fx = (Array.isArray(got) ? got[0] : got) as PlayerVignettePostFX | undefined;
+    if (!fx) return;
+    fx.maskKey = this.vignetteMaskKey;
+    fx.radius = this.vignetteRadius;
+    fx.intensity = this.vignetteIntensity;
+    this.vignetteFx = fx;
+  }
+
+  /** Updates vignette center/radius/intensity so it follows the player. */
+  private updateVignetteFx() {
+    if (!this.vignetteFx) return;
+    const cam = this.cameras.main;
+
+    // Convert world -> normalized screen UV using camera worldView.
+    const cx = (this.player.x - cam.worldView.x) / cam.worldView.width;
+    const cy = (this.player.y - cam.worldView.y) / cam.worldView.height;
+
+    this.vignetteFx.centerX = Phaser.Math.Clamp(cx, 0, 1);
+    this.vignetteFx.centerY = Phaser.Math.Clamp(cy, 0, 1);
+    this.vignetteFx.radius = this.vignetteRadius;
+    this.vignetteFx.intensity = this.vignetteIntensity;
+  }
+
+  /** Keyboard controls for tweaking vignette radius (Q/E) and intensity (Z/C). */
+  private handleVignetteControls() {
+    if (Phaser.Input.Keyboard.JustDown(this.vignetteRadiusDownKey)) {
+      this.vignetteRadius = Phaser.Math.Clamp(this.vignetteRadius - 0.03, 0.15, 1);
+    }
+    if (Phaser.Input.Keyboard.JustDown(this.vignetteRadiusUpKey)) {
+      this.vignetteRadius = Phaser.Math.Clamp(this.vignetteRadius + 0.03, 0.15, 1);
+    }
+    if (Phaser.Input.Keyboard.JustDown(this.vignetteIntensityDownKey)) {
+      this.vignetteIntensity = Phaser.Math.Clamp(this.vignetteIntensity - 0.05, 0, 1);
+    }
+    if (Phaser.Input.Keyboard.JustDown(this.vignetteIntensityUpKey)) {
+      this.vignetteIntensity = Phaser.Math.Clamp(this.vignetteIntensity + 0.05, 0, 1);
+    }
+  }
+
+  /**
+   * Creates a full-screen dark overlay and a circular GeometryMask hole that follows the player.
+   * The overlay uses MULTIPLY so the world stays visible (but dark) outside the circle.
+   */
+  private setupLightMask() {
+    this.darknessOverlay = this.add.rectangle(0, 0, GameData.globals.gameWidth, GameData.globals.gameHeight, 0x000000, this.darknessAlpha)
+      .setOrigin(0)
+      .setScrollFactor(0)
+      .setDepth(1400);
+
+    // For full fog-of-war we want a solid black occlusion (not a multiply darken).
+    this.darknessOverlay.setBlendMode(Phaser.BlendModes.NORMAL);
+
+    // Mask graphics live in screen space (scrollFactor 0). We invert alpha to create a "hole".
+    this.lightMaskGraphics = this.add.graphics().setScrollFactor(0).setDepth(1401);
+    this.lightMaskGraphics.setVisible(false);
+    const mask = this.lightMaskGraphics.createGeometryMask();
+    mask.invertAlpha = true;
+    this.darknessOverlay.setMask(mask);
+
+    // Keep HUD readable by not rendering the darkness layer in the HUD camera.
+    if (this.hudCamera) {
+      this.hudCamera.ignore(this.darknessOverlay);
+      this.hudCamera.ignore(this.lightMaskGraphics);
+    }
+
+    // No camera post-processing: this fog-of-war is implemented purely via overlay + mask.
+  }
+
+  /** Updates the circular mask position so it stays centered on the player every frame. */
+  private updateLightMask() {
+    if (!this.darknessOverlay || !this.lightMaskGraphics) return;
+    const cam = this.cameras.main;
+
+    // Player screen position (pixels) relative to the camera viewport.
+    const sx = (this.player.x - cam.worldView.x) * cam.zoom;
+    const sy = (this.player.y - cam.worldView.y) * cam.zoom;
+
+    this.lightMaskGraphics.clear();
+    this.lightMaskGraphics.fillStyle(0xffffff, 1);
+    // Solid clear circle.
+    this.lightMaskGraphics.fillCircle(sx, sy, this.lightRadiusPx);
+
+    // Feather ring: gradually reduce mask alpha towards the edge so the overlay fades in.
+    // This avoids camera post-fx while still giving a vignette-like falloff.
+    const steps = 10;
+    const stepW = this.fogFeatherPx / steps;
+    for (let i = 1; i <= steps; i++) {
+      const t = i / steps;
+      const a = 1 - t;
+      this.lightMaskGraphics.lineStyle(stepW + 1, 0xffffff, a);
+      this.lightMaskGraphics.strokeCircle(sx, sy, this.lightRadiusPx + i * stepW);
+    }
+
+    this.darknessOverlay.setAlpha(this.darknessAlpha);
+  }
+
+  /** Keyboard controls for tweaking light radius (Q/E) and darkness intensity (Z/C). */
+  private handleLightMaskControls() {
+    if (Phaser.Input.Keyboard.JustDown(this.vignetteRadiusDownKey)) {
+      this.lightRadiusPx = Phaser.Math.Clamp(this.lightRadiusPx - 15, 60, 900);
+    }
+    if (Phaser.Input.Keyboard.JustDown(this.vignetteRadiusUpKey)) {
+      this.lightRadiusPx = Phaser.Math.Clamp(this.lightRadiusPx + 15, 60, 900);
+    }
+    if (Phaser.Input.Keyboard.JustDown(this.vignetteIntensityDownKey)) {
+      this.darknessAlpha = Phaser.Math.Clamp(this.darknessAlpha - 0.05, 0, 0.95);
+    }
+    if (Phaser.Input.Keyboard.JustDown(this.vignetteIntensityUpKey)) {
+      this.darknessAlpha = Phaser.Math.Clamp(this.darknessAlpha + 0.05, 0, 0.95);
+    }
+  }
+
+  /** Spawns a random enemy type around the camera and sets up its properties and animation. */
   spawnEnemy(map: Phaser.Tilemaps.Tilemap, forceRandom: boolean = false) {
     const cam = this.cameras.main;
     const offset = 100;
@@ -387,9 +654,9 @@ export default class GamePlay extends Phaser.Scene {
       enemy.setBodySize(80, 100);
       enemy.setOffset(24, 20);
     } else if (type === "mago") {
-      enemy.setScale(0.5);
-      enemy.setBodySize(60, 60);
-      enemy.setOffset(65, 80);
+      enemy.setScale(1);
+      enemy.setBodySize(40, 70);
+      enemy.setOffset(18, 45);
     } else {
       enemy.setScale(0.6);
       enemy.setBodySize(80, 100);
@@ -399,19 +666,49 @@ export default class GamePlay extends Phaser.Scene {
     enemy.play(animKey);
   }
 
+  /** Applies damage to an enemy, handles death, score, drops, and hit feedback. */
   damageEnemy(e: any) {
     if (!e.active || e.isDying) return;
     e.hp -= 1;
     this.showFloatingText(e.x, e.y - 40, "-1", "#ffff00", true);
     if (e.hp <= 0) {
       e.isDying = true;
-      // Flash bianco poi scompare
-      e.setTint(0xffffff);
-      e.setAlpha(0.8);
-      this.time.delayedCall(150, () => {
-        if (e.healthBar) e.healthBar.destroy();
-        if (e.active) e.destroy();
-      });
+      // Scheletro/Demon: animazione morte. Altri: flash bianco e scomparsa rapida.
+      if (e.type === "skeleton") {
+        if (e.body) { e.body.enable = false; e.body.velocity.set(0); }
+        e.clearTint();
+        e.setAlpha(1);
+        e.play("scheletro-dead", true);
+        this.time.delayedCall(500, () => {
+          if (e.healthBar) e.healthBar.destroy();
+          if (e.active) e.destroy();
+        });
+      } else if (e.type === "mago") {
+        if (e.body) { e.body.enable = false; e.body.velocity.set(0); }
+        e.clearTint();
+        e.setAlpha(1);
+        e.play("mago-dead", true);
+        this.time.delayedCall(500, () => {
+          if (e.healthBar) e.healthBar.destroy();
+          if (e.active) e.destroy();
+        });
+      } else if (e.type === "demon") {
+        if (e.body) { e.body.enable = false; e.body.velocity.set(0); }
+        e.clearTint();
+        e.setAlpha(1);
+        e.play("demon-dead", true);
+        this.time.delayedCall(650, () => {
+          if (e.healthBar) e.healthBar.destroy();
+          if (e.active) e.destroy();
+        });
+      } else {
+        e.setTint(0xffffff);
+        e.setAlpha(0.8);
+        this.time.delayedCall(150, () => {
+          if (e.healthBar) e.healthBar.destroy();
+          if (e.active) e.destroy();
+        });
+      }
       this.enemiesKilled++;
       // Score per tipo
       const pts = e.type === "demon" ? 30 : e.type === "mago" ? 20 : 10;
@@ -427,10 +724,21 @@ export default class GamePlay extends Phaser.Scene {
       if (this.enemiesKilled >= this.targetKills && !this.isGameOver) this.showEndScreen(true);
     } else {
       e.setTint(0xff0000);
+      if (e.type === "skeleton") {
+        e.play("scheletro-hurt", true);
+        e.once("animationcomplete-scheletro-hurt", () => { if (e.active && !e.isDying) e.play("scheletro-run", true); });
+      } else if (e.type === "mago") {
+        e.play("mago-hurt", true);
+        e.once("animationcomplete-mago-hurt", () => { if (e.active && !e.isDying) e.play("mago-idle", true); });
+      } else if (e.type === "demon") {
+        e.play("demon-hurt", true);
+        e.once("animationcomplete-demon-hurt", () => { if (e.active && !e.isDying) e.play("demon-walk", true); });
+      }
       this.time.delayedCall(150, () => { if (e.active) e.clearTint(); });
     }
   }
 
+  /** Redraws the player health bar based on current HP. */
   updatePlayerHealthBar() {
     this.playerHealthBar.clear();
     this.playerHealthBar.fillStyle(0x000000, 0.5);
@@ -440,6 +748,7 @@ export default class GamePlay extends Phaser.Scene {
     this.playerHealthBar.fillRect(20, 20, (this.player.hp / 100) * 200, 20);
   }
 
+  /** Redraws an enemy health bar above the enemy sprite. */
   updateEnemyHealthBar(enemy: any) {
     enemy.healthBar.clear();
     if (enemy.hp <= 0) return;
@@ -451,6 +760,7 @@ export default class GamePlay extends Phaser.Scene {
     enemy.healthBar.fillRect(x, y, (enemy.hp / enemy.maxHp) * 50, 6);
   }
 
+  /** Displays end-of-wave or game-over overlay with restart/next actions. */
   showEndScreen(victory: boolean) {
     this.isGameOver = true;
     this.physics.pause();
@@ -495,6 +805,7 @@ export default class GamePlay extends Phaser.Scene {
     });
   }
 
+  /** Per-enemy AI dispatcher: skeleton / mago / demon. */
   private updateEnemyAI(enemy: any, time: number) {
     if (this.isGameOver || this.isPaused || enemy.isDying) return;
 
@@ -517,17 +828,29 @@ export default class GamePlay extends Phaser.Scene {
     this.updateEnemyHealthBar(enemy);
   }
 
+  /** Skeleton AI: chase, dash attack when close, idle when too near. */
   private updateSkeletonAI(enemy: any, dist: number, angle: number, time: number) {
     if (dist < 120 && time > enemy.lastAttackTime + 2000) {
       enemy.lastAttackTime = time;
       this.physics.velocityFromRotation(angle, 400 + (enemy.chaseSpeed - 120) * 0.5, enemy.body.velocity);
       enemy.setTint(0xffaa00);
+      enemy.play("scheletro-run-attack", true);
       this.time.delayedCall(300, () => { if (enemy.active) enemy.clearTint(); });
     } else if (dist > 30) {
       this.physics.moveToObject(enemy, this.player, enemy.chaseSpeed);
+      const cur = enemy.anims?.currentAnim?.key;
+      const busy = !!enemy.anims?.isPlaying && (cur === "scheletro-run-attack" || cur === "scheletro-attack-1" || cur === "scheletro-attack-2" || cur === "scheletro-attack-3" || cur === "scheletro-hurt" || cur === "scheletro-dead");
+      const desired = enemy.chaseSpeed >= 170 ? "scheletro-run" : "scheletro-walk";
+      if (!busy && cur !== desired) enemy.play(desired, true);
+    } else {
+      if (enemy.body) enemy.body.velocity.set(0);
+      const cur = enemy.anims?.currentAnim?.key;
+      const busy = !!enemy.anims?.isPlaying && (cur === "scheletro-run-attack" || cur === "scheletro-attack-1" || cur === "scheletro-attack-2" || cur === "scheletro-attack-3" || cur === "scheletro-hurt" || cur === "scheletro-dead");
+      if (!busy && cur !== "scheletro-idle") enemy.play("scheletro-idle", true);
     }
   }
 
+  /** Mago AI: strafes around optimal range and shoots with cooldown. */
   private updateMagoAI(enemy: any, dist: number, angle: number, time: number) {
     // Inizializza la direzione di strafe se non esiste
     if (enemy.strafeDir === undefined) {
@@ -540,11 +863,16 @@ export default class GamePlay extends Phaser.Scene {
       enemy.strafeChangeTime = time + Phaser.Math.Between(1500, 2500);
     }
 
+    let didShoot = false;
+    const cur = enemy.anims?.currentAnim?.key;
+    const busy = !!enemy.anims?.isPlaying && (cur === "mago-attack-1" || cur === "mago-attack-2" || cur === "mago-charge" || cur === "mago-hurt" || cur === "mago-dead");
+
     if (dist > 380) {
       // Troppo lontano: si avvicina veloce e spara in movimento
       this.physics.moveToObject(enemy, this.player, enemy.chaseSpeed);
       if (time > enemy.lastAttackTime + Phaser.Math.Between(1800, 2800)) {
         enemy.lastAttackTime = time;
+        didShoot = true;
         this.enemyShoot(enemy);
       }
     } else if (dist < 200) {
@@ -554,6 +882,7 @@ export default class GamePlay extends Phaser.Scene {
       // Spara anche mentre scappa
       if (time > enemy.lastAttackTime + Phaser.Math.Between(800, 1500)) {
         enemy.lastAttackTime = time;
+        didShoot = true;
         this.enemyShoot(enemy);
       }
     } else {
@@ -564,11 +893,20 @@ export default class GamePlay extends Phaser.Scene {
 
       if (time > enemy.lastAttackTime + Phaser.Math.Between(900, 2000)) {
         enemy.lastAttackTime = time;
+        didShoot = true;
         this.enemyShoot(enemy);
       }
     }
+
+    // Animazione movimento (se non sta facendo attacchi/hurt/dead)
+    if (!busy && !didShoot) {
+      const speed = enemy.body?.velocity ? enemy.body.velocity.length() : 0;
+      const desired = speed > 30 ? "mago-run" : "mago-idle";
+      if (cur !== desired) enemy.play(desired, true);
+    }
   }
 
+  /** Demon AI: chases and occasionally charges (jump) at mid-range. */
   private updateDemonAI(enemy: any, dist: number, angle: number, time: number) {
     // Il demone carica se è a media distanza
     if (enemy.state === "CHARGE") {
@@ -580,46 +918,88 @@ export default class GamePlay extends Phaser.Scene {
       enemy.state = "CHARGE";
       enemy.lastAttackTime = time;
       enemy.setTint(0xff00ff);
+      enemy.play("demon-jump", true);
       this.physics.velocityFromRotation(angle, 500 + (enemy.chaseSpeed - 80) * 2, enemy.body.velocity);
       
       this.time.delayedCall(1000, () => {
-        if (enemy.active) { enemy.state = "CHASE"; enemy.clearTint(); }
+        if (enemy.active) {
+          enemy.state = "CHASE";
+          enemy.clearTint();
+          const desired = enemy.chaseSpeed >= 120 ? "demon-run" : "demon-walk";
+          enemy.play(desired, true);
+        }
       });
     } else {
       this.physics.moveToObject(enemy, this.player, enemy.chaseSpeed);
+      const cur = enemy.anims?.currentAnim?.key;
+      const busy = !!enemy.anims?.isPlaying && (cur === "demon-jump" || cur === "demon-attack-1" || cur === "demon-attack-2" || cur === "demon-attack-3" || cur === "demon-hurt" || cur === "demon-dead");
+      const desired = enemy.chaseSpeed >= 120 ? "demon-run" : "demon-walk";
+      if (!busy && cur !== desired) enemy.play(desired, true);
     }
   }
 
+  /** Enemy ranged attack (mago uses animated projectile; others use generic bullet). */
   enemyShoot(enemy: any) {
     if (this.isGameOver || this.isPaused) return;
     
-    // Spara verso il player
+    // Mago: usa l'animazione Charge_1 come proiettile (al posto di arrow_1.png)
     const angle = Phaser.Math.Angle.Between(enemy.x, enemy.y, this.player.x, this.player.y);
-    const bullet = this.enemyBullets.create(enemy.x, enemy.y, "phaser") as any;
+
+    if (enemy.type === "mago") {
+      const atkKey = Phaser.Math.Between(1, 2) === 1 ? "mago-attack-1" : "mago-attack-2";
+      enemy.play(atkKey, true);
+      enemy.once(`animationcomplete-${atkKey}`, () => {
+        if (!enemy.active || enemy.isDying) return;
+        const v = enemy.body?.velocity ? enemy.body.velocity.length() : 0;
+        enemy.play(v > 30 ? "mago-run" : "mago-idle", true);
+      });
+
+      const bullet = this.enemyBullets.create(enemy.x, enemy.y, "mago_charge_1") as any;
+      if (this.hudCamera) this.hudCamera.ignore(bullet);
+      bullet.setScale(1);
+      // Colore magico blu per il mago
+      bullet.setTint(0x2aa8ff);
+      if (bullet.anims) bullet.play("mago-projectile", true);
+
+      const speed = 300;
+      bullet.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
+      bullet.setRotation(angle);
+
+      enemy.setTint(0x2aa8ff);
+      this.time.delayedCall(200, () => { if (enemy.active) enemy.clearTint(); });
+      return;
+    }
+
+    // (fallback) proiettile generico
+    const bullet = this.enemyBullets.create(enemy.x, enemy.y, "arrow_1") as any;
     
     if (this.hudCamera) this.hudCamera.ignore(bullet);
     
-    bullet.setScale(0.1);
+    bullet.setScale(1);
     bullet.setTint(0xff0000); // Proiettili nemici rossi
     
     const speed = 300;
     bullet.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
-    bullet.setRotation(angle);
+    // `arrow_1.png` e' disegnata "verso l'alto": aggiustiamo la rotazione per puntare verso il target.
+    bullet.setRotation(angle + Math.PI / 2);
     
-    // Effetto visivo "flash" sul mago quando spara
+    // Effetto visivo "flash" quando spara
     enemy.setTint(0xffff00);
     this.time.delayedCall(200, () => {
       if (enemy.active) enemy.clearTint();
     });
   }
 
+  /** Main game loop: input handling, player movement/attack, enemy AI, and post FX updates. */
   update(time: number, delta: number): void {
     if (this.isGameOver || this.isPaused) return;
 
-    const currentSpeed = this.isSprinting ? this.sprintSpeed : this.normalSpeed;
     const body = this.player.body as Phaser.Physics.Arcade.Body;
 
-    if (Phaser.Input.Keyboard.JustDown(this.shiftKey) && this.canSprint) this.startSprint();
+    this.updateLightMask();
+    this.handleLightMaskControls();
+
+    if (Phaser.Input.Keyboard.JustDown(this.shiftKey)) this.startDash();
     if (Phaser.Input.Keyboard.JustDown(this.tabKey)) {
       this.currentAbility = this.currentAbility === "punch" ? "shoot" : "punch";
       this.abilityText.setText(`Abilità: ${this.currentAbility === "punch" ? "PUGNO" : "SPARO"} [TAB/LMB]`);
@@ -629,7 +1009,9 @@ export default class GamePlay extends Phaser.Scene {
       (this.player.anims.currentAnim.key === "punch" || this.player.anims.currentAnim.key === "shoot") &&
       this.player.anims.isPlaying;
 
-    if (isAttacking) {
+    if (this.isDashing) {
+      // Durante lo scatto non accettiamo input di movimento / attacco.
+    } else if (isAttacking) {
       body.setVelocity(0);
     } else {
       let dx = 0;
@@ -640,8 +1022,10 @@ export default class GamePlay extends Phaser.Scene {
       else if (this.cursors.down.isDown || this.wasd.down.isDown) dy = 1;
 
       if (dx !== 0 || dy !== 0) {
-        body.setVelocity(dx * currentSpeed, dy * currentSpeed);
-        if (!isAttacking) this.player.setFlipX(dx < 0);
+        const len = Math.sqrt(dx * dx + dy * dy) || 1;
+        this.lastDirection.set(dx / len, dy / len);
+        body.setVelocity(dx * this.normalSpeed, dy * this.normalSpeed);
+        this.player.setFlipX(dx < 0);
         this.player.anims.play("walk", true);
       } else {
         body.setVelocity(0);
@@ -660,24 +1044,34 @@ export default class GamePlay extends Phaser.Scene {
     });
   }
 
-  startSprint() {
-    this.isSprinting = true;
-    this.canSprint = false;
-    this.sprintText.setText("Sprint: ATTIVO! ⚡").setColor("#ffff00");
+  /** Performs a short dash in the last movement/aim direction with cooldown. */
+  startDash() {
+    if (!this.canDash || this.isDashing) return;
+    if (this.isGameOver || this.isPaused) return;
+
+    this.isDashing = true;
+    this.canDash = false;
+    this.dashText.setText("Scatto: ATTIVO!").setColor("#2aa8ff");
     this.player.setAlpha(0.7);
-    this.time.delayedCall(5000, () => {
-      this.isSprinting = false;
+
+    const body = this.player.body as Phaser.Physics.Arcade.Body;
+    body.setVelocity(this.lastDirection.x * this.dashSpeed, this.lastDirection.y * this.dashSpeed);
+
+    this.time.delayedCall(this.dashDurationMs, () => {
+      this.isDashing = false;
       this.player.setAlpha(1);
-      this.sprintText.setText("Sprint: COOLDOWN...").setColor("#ff0000");
-      this.time.delayedCall(5000, () => {
-        this.canSprint = true;
-        this.sprintText.setText("Sprint: PRONTO [SHIFT]").setColor("#00ff00");
+      this.dashText.setText("Scatto: COOLDOWN...").setColor("#ff0000");
+
+      this.time.delayedCall(this.dashCooldownMs, () => {
+        this.canDash = true;
+        this.dashText.setText("Scatto: PRONTO [SHIFT]").setColor("#00ff00");
       });
     });
   }
 
   // --- Metodi nuovi ---
 
+  /** Spawns a transient floating text, either in world space or HUD space. */
   showFloatingText(x: number, y: number, text: string, color: string, worldSpace: boolean) {
     const txt = this.add.text(x, y, text, {
       fontSize: "22px",
@@ -702,6 +1096,7 @@ export default class GamePlay extends Phaser.Scene {
     });
   }
 
+  /** Drops a health pickup at the given world position. */
   dropHealthPickup(x: number, y: number) {
     const pickup = this.healthPickups.create(x, y, "phaser") as any;
     pickup.setTint(0x00ff44);
@@ -713,6 +1108,7 @@ export default class GamePlay extends Phaser.Scene {
     this.tweens.add({ targets: pickup, scaleX: 0.18, scaleY: 0.18, duration: 150, yoyo: true });
   }
 
+  /** Shows a wave banner overlay for a short duration. */
   showWaveBanner(wave: number) {
     const cx = GameData.globals.gameWidth / 2;
     const cy = GameData.globals.gameHeight / 2;
@@ -733,6 +1129,7 @@ export default class GamePlay extends Phaser.Scene {
     });
   }
 
+  /** Updates the kill-streak counter and score multiplier window. */
   updateKillStreak() {
     const now = this.time.now;
     if (now - this.lastKillTime < 2000) {
@@ -746,6 +1143,7 @@ export default class GamePlay extends Phaser.Scene {
     this.lastKillTime = now;
   }
 
+  /** Shows a kill-streak/combo text overlay (HUD). */
   showStreakText(text: string) {
     const cx = GameData.globals.gameWidth / 2;
     const cy = GameData.globals.gameHeight / 2 - 120;

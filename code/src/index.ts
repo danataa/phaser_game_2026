@@ -15,6 +15,7 @@ import { GameData } from "./GameData";
 //e tutti gli elementi della pagina sono disponibili
 window.addEventListener("load", () => {
 
+  /** Builds the Phaser game config and boots the game. */
 
   //creiamo un oggetto di configurazione per il gioco
   //questo oggetto viene passato al costruttore di Phaser.Game

@@ -8,18 +8,21 @@ export default class Preloader extends Phaser.Scene {
   private _progress: Phaser.GameObjects.Graphics;
   private _image: Phaser.GameObjects.Image;
 
+  /** Scene constructor (key: Preloader). */
   constructor() {
     super({
       key: "Preloader",
     });
   }
 
+  /** Preloads all game assets defined in GameData while showing a progress bar. */
   preload() {
     this.cameras.main.setBackgroundColor(GameData.globals.bgColor);
     this._progress = this.add.graphics();
     this.loadAssets();
   }
 
+  /** Builds the preloader UI (logo + loading text). */
   init() {
     this._image = this.add
       .image(
@@ -42,6 +45,7 @@ export default class Preloader extends Phaser.Scene {
       .setOrigin(0.5, 1).setColor("#000000").setFontSize(40).setFontFamily(GameData.preloader.loadingTextFont);
   }
 
+  /** Enqueues assets (images, spritesheets, maps, sounds, fonts) based on GameData. */
   loadAssets(): void {
 
     this.load.on("start", () => { });

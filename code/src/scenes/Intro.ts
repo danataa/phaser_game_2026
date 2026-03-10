@@ -2,6 +2,7 @@ export default class Intro extends Phaser.Scene {
   private bgMusic: Phaser.Sound.BaseSound;
   private optionsContainer: Phaser.GameObjects.Container;
 
+  /** Scene constructor (key: Intro). */
   constructor() {
     super({
       key: "Intro",
@@ -9,11 +10,13 @@ export default class Intro extends Phaser.Scene {
 
   }
 
+  /** Optional preload hook (no-op). */
   preload() {
 
 
   }
 
+  /** Builds the main menu UI and starts background music. */
   create() {
     // Background
     this.add.rectangle(0, 0, 1280, 800, 0x0a0a1a).setOrigin(0);
@@ -64,7 +67,7 @@ export default class Intro extends Phaser.Scene {
       });
 
     // Istruzioni
-    this.add.text(this.cameras.main.centerX, 480, "WASD/Frecce: Muovi  |  Click: Attacca  |  TAB: Cambia arma  |  SHIFT: Sprint  |  ESC: Pausa", {
+    this.add.text(this.cameras.main.centerX, 480, "WASD/Frecce: Muovi  |  Click: Attacca  |  TAB: Cambia arma  |  SHIFT: Scatto  |  ESC: Pausa", {
       font: "16px Arial",
       color: "#888888",
     }).setOrigin(0.5);
@@ -72,6 +75,7 @@ export default class Intro extends Phaser.Scene {
     this.setupOptionsUI();
   }
 
+  /** Creates the options popup (volume controls + mute). */
   setupOptionsUI() {
     const bg = this.add.rectangle(0, 0, 400, 200, 0x000000, 0.8).setOrigin(0.5);
     const title = this.add.text(0, -70, "OPTIONS", { fontSize: "24px", color: "#ffffff" }).setOrigin(0.5);
@@ -111,13 +115,14 @@ export default class Intro extends Phaser.Scene {
     this.optionsContainer = this.add.container(this.cameras.main.centerX, 450, [bg, title, volDown, volUp, mute, close]).setVisible(false);
   }
 
+  /** Toggles visibility of the options popup. */
   toggleOptions() {
     this.optionsContainer.setVisible(!this.optionsContainer.visible);
   }
 
+  /** Per-frame update hook (unused). */
   update(time: number, delta: number): void {
 
   }
 
 }
-

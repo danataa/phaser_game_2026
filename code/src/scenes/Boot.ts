@@ -9,6 +9,7 @@ export default class Boot extends Phaser.Scene {
   //il costruttore richiama il costruttore della classe Phaser.Scene
   //si usa il metodo super per richiamare il costruttore della classe Phaser.Scene
 
+  /** Scene constructor (key: Boot). */
   constructor() {
     // il metodo super prende come parametro un oggetto con una chiave key che ha come valore il nome della scena
     super({
@@ -19,11 +20,13 @@ export default class Boot extends Phaser.Scene {
 
   //il metodo init viene chiamato all'inizio della scena
   //in questo caso non esegue nessuna operazione
+  /** Optional scene init hook (no-op). */
   init() {
 
   }
   //il metodo preload viene chiamato dopo il metodo init
   //nel metodo preload vengono caricati gli assets che servono per il caricamento della scena successiva
+  /** Loads the minimal assets needed to display the preloader (logo). */
   preload() {
 
 
@@ -35,6 +38,7 @@ export default class Boot extends Phaser.Scene {
   }
 
   //il metodo create viene chiamato dopo il metodo preload
+  /** Transitions from Boot to Preloader. */
   create() {
 
 
@@ -46,6 +50,7 @@ export default class Boot extends Phaser.Scene {
 
   }
 
+  /** Per-frame update hook (unused). */
   update(time: number, delta: number): void {
 
     //this._text.angle += 1;
