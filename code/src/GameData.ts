@@ -2,26 +2,32 @@ export let GameData: gameData = {
   globals: {
     gameWidth: 1280,
     gameHeight: 800,
-    bgColor: "#ffffff",
-    debug: false
+    bgColor: "#000000",
+    debug: true
   },
 
   preloader: {
-    bgColor: "ffffff",
-    image: "logo",
+    bgColor: "#ffffff",
+    image: "freedoom",
     imageX: 1280 / 2,
     imageY: 800 / 2,
-    loadingText: "Caricamento...",
-    loadingTextFont: "roboto",
-    loadingTextComplete: "Tappa/clicca per iniziare!!",
-    loadingTextY: 700,
-    loadingBarColor: 0xff0000,
-    loadingBarY: 630,
+    loadingText: "Loading...",
+    loadingTextFont: "20px Arial",
+    loadingTextComplete: "Loading complete",
+    loadingTextY: 620,
+    loadingBarColor: 0xffffff,
+    loadingBarY: 650,
   },
 
   spritesheets: [
 
-    { name: "player", path: "assets/images/player.png", width: 82, height: 70, frames: 50 },
+    { name: "player_attack_1", path: "assets/spritesheets/knight/Knight_3/Attack 1.png", width: 128, height: 128, frames: 5 },
+    { name: "player_attack_2", path: "assets/spritesheets/knight/Knight_3/Attack 2.png", width: 128, height: 128, frames: 4 },
+    { name: "player_attack_3", path: "assets/spritesheets/knight/Knight_3/Attack 3.png", width: 128, height: 128, frames: 4 },
+    { name: "player_dead", path: "assets/spritesheets/knight/Knight_3/Dead.png", width: 128, height: 128, frames: 6 },
+    { name: "player_idle", path: "assets/spritesheets/knight/Knight_3/Idle.png", width: 128, height: 128, frames: 4 },
+    { name: "player_hurt", path: "assets/spritesheets/knight/Knight_3/Hurt.png", width: 128, height: 128, frames: 2 },
+    { name: "player_walk", path: "assets/spritesheets/knight/Knight_3/Run.png", width: 128, height: 128, frames: 7 },
     // Mago (Wizzard) animations (128x128 frames)
     { name: "mago", path: "assets/images/Wizzard/Idle.png", width: 128, height: 128, frames: 8 },
     { name: "mago_walk", path: "assets/images/Wizzard/Walk.png", width: 128, height: 128, frames: 7 },
@@ -33,7 +39,7 @@ export let GameData: gameData = {
     { name: "mago_charge_2", path: "assets/images/Wizzard/Charge_2.png", width: 128, height: 128, frames: 3 },
     { name: "mago_hurt", path: "assets/images/Wizzard/Hurt.png", width: 128, height: 128, frames: 4 },
     { name: "mago_dead", path: "assets/images/Wizzard/Dead.png", width: 128, height: 128, frames: 4 },
-    { name: "tileset_0", path: "assets/map/mainlevbuild.png", width: 320, height: 192, frames: 0 },
+
     // Demon animations (128x128 frames)
     { name: "demon_idle", path: "assets/images/Demon/Idle.png", width: 128, height: 128, frames: 6 },
     { name: "demon_idle_2", path: "assets/images/Demon/Idle_2.png", width: 128, height: 128, frames: 5 },
@@ -63,8 +69,6 @@ export let GameData: gameData = {
   ],
 
   tilemaps: [
-    //{key: "tilemap_0", path: "assets/map/test_0.json"}
-
     {key: "tilemap_0", path: "assets/map/catacombe.json"}
   ],
 
@@ -75,6 +79,7 @@ export let GameData: gameData = {
     { name: "vignette-mask", path: "assets/images/vignette_mask.png" },
     { name: "freedoom", path: "assets/images/freedoom.png" },
     { name: "thelucasart", path: "assets/images/thelucasart.png" },
+    { name: "tileset_0", path: "assets/map/mainlevbuild.png" },
     { name: "intro-bg", path: "assets/images/intro-bg.jpg" },
 
 
@@ -96,7 +101,6 @@ export let GameData: gameData = {
 
   ],
   audios: [
-
    /* {
     name: "sfx",
     jsonpath: "assets/sounds/sfx.json",
@@ -106,7 +110,18 @@ export let GameData: gameData = {
   ],
 
   scripts: [],
-  fonts: [{key:"ralewayRegular", path:"assets/fonts/raleway.regular.ttf",type:"truetype"}],
-  webfonts: [{ key: 'Nosifer' }, { key: 'Roboto' }, { key: 'Press+Start+2P' }, { key: 'Rubik+Doodle+Shadow' }, { key: 'Rubik+Glitch' }],
+
+  fonts: [
+    {key:"ralewayRegular", 
+    path:"assets/fonts/raleway.regular.ttf",
+    type:"truetype"}],
+
+  webfonts: [
+    { key: 'Nosifer' }, 
+    { key: 'Roboto' },
+    { key: 'Press+Start+2P' }, 
+    { key: 'Rubik+Doodle+Shadow' }, 
+    { key: 'Rubik+Glitch' }],
+ 
   bitmapfonts: [],
 };

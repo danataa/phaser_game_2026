@@ -85,11 +85,17 @@ export default class GamePlay extends Phaser.Scene {
     const map = this.add.tilemap("tilemap_0");
     const tileset = map.addTilesetImage("mainlevbuild", "tileset_0");
     const floor = map.createLayer("floor", tileset, 0, 0);
-    const collideLayer = map.createLayer("wall", tileset, 0, 0);
+    const holes = map.createLayer("holes", tileset, 0, 0);
+    const walls = map.createLayer("walls", tileset, 0, 0);
+    const accesories = map.createLayer("accessories", tileset, 0, 0);
 
     floor.setScale(2);
-    collideLayer.setScale(2);
-    collideLayer.setCollisionByProperty({ collide: true });
+    holes.setScale(2);
+    accesories.setScale(2);
+    walls.setScale(2);
+
+    const collidableLayers = [floor, holes, walls, accesories];
+    collidableLayers.forEach(layer => layer.setCollisionByProperty({ collide: true }));
 
     this.physics.world.setBounds(0, 0, map.widthInPixels * 2, map.heightInPixels * 2);
 
@@ -98,13 +104,13 @@ export default class GamePlay extends Phaser.Scene {
     this.enemies = this.physics.add.group();
     this.healthPickups = this.physics.add.group();
 
-    this.player = this.physics.add.sprite(200, 200, "player") as any;
+    this.player = this.physics.add.sprite(200, 200, "player_idle") as any;
     this.player.hp = 100;
     this.player.isInvulnerable = false;
     this.player.setCollideWorldBounds(true);
-    this.player.setBodySize(30, 30);
-    this.player.setOffset(26, 35);
-    this.physics.add.collider(this.player, collideLayer);
+    this.player.setBodySize(30, 55);
+    this.player.setOffset(15, 68);
+    collidableLayers.forEach(layer => this.physics.add.collider(this.player, layer));
 
     this.setupUI();
     this.setupPlayerAnims();
@@ -120,7 +126,7 @@ export default class GamePlay extends Phaser.Scene {
     this.hudCamera.setZoom(1);
 
     this.hudCamera.ignore(floor);
-    this.hudCamera.ignore(collideLayer);
+    this.hudCamera.ignore(walls);
     this.hudCamera.ignore(this.player);
     if (this.physics.world.debugGraphic) {
       this.hudCamera.ignore(this.physics.world.debugGraphic);
@@ -248,9 +254,11 @@ export default class GamePlay extends Phaser.Scene {
       loop: true
     });
 
-    this.physics.add.collider(this.enemies, collideLayer);
-    this.physics.add.collider(this.bullets, collideLayer, (b: any) => b.destroy());
-    this.physics.add.collider(this.enemyBullets, collideLayer, (b: any) => b.destroy());
+    collidableLayers.forEach(layer => {
+      this.physics.add.collider(this.enemies, layer);
+      this.physics.add.collider(this.bullets, layer, (b: any) => b.destroy());
+      this.physics.add.collider(this.enemyBullets, layer, (b: any) => b.destroy());
+    });
 
     this.physics.add.overlap(this.bullets, this.enemies, (b: any, e: any) => {
       b.destroy();
@@ -340,8 +348,11 @@ export default class GamePlay extends Phaser.Scene {
       this.cameras.main.shake(150, 0.008);
       this.showFloatingText(this.player.x, this.player.y - 40, `-${damage}`, "#ff4444", true);
       this.updatePlayerHealthBar();
-      if (this.player.hp <= 0) this.showEndScreen(false);
-      else {
+      if (this.player.hp <= 0) {
+        this.player.anims.play("player-dead", true);
+        this.showEndScreen(false);
+      } else {
+        this.player.anims.play("player-hurt", true);
         this.time.delayedCall(1000, () => {
           this.player.isInvulnerable = false;
           this.player.clearTint();
@@ -389,16 +400,16 @@ export default class GamePlay extends Phaser.Scene {
     const pointer = this.input.activePointer;
     const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, pointer.worldX, pointer.worldY);
     this.lastDirection.set(Math.cos(angle), Math.sin(angle));
-    this.player.setFlipX(pointer.worldX < this.player.x);
+    this.setPlayerFlipX(pointer.worldX < this.player.x);
 
     if (this.currentAbility === "punch") {
-      this.player.anims.play("punch", true);
+      this.player.anims.play("player-attack-1", true);
       this.enemies.getChildren().forEach((e: any) => {
         const distance = Phaser.Math.Distance.Between(this.player.x, this.player.y, e.x, e.y);
         if (distance < 100) this.damageEnemy(e);
       });
     } else {
-      this.player.anims.play("shoot", true);
+      this.player.anims.play("player-attack-2", true);
       const bullet = this.bullets.create(this.player.x, this.player.y, "phaser") as any;
       if (this.hudCamera) this.hudCamera.ignore(bullet);
       bullet.setScale(0.1);
@@ -418,12 +429,16 @@ export default class GamePlay extends Phaser.Scene {
     this.scoreText = this.add.text(GameData.globals.gameWidth - 300, 52, "Score: 0", { fontSize: "20px", color: "#ffffff", backgroundColor: "#00000066" }).setScrollFactor(0).setDepth(1000);
   }
 
-  /** Defines player animations (walk, punch, shoot) once. */
+  /** Defines player animations once using the new Knight_3 spritesheets. */
   setupPlayerAnims() {
-    if (!this.anims.exists("walk")) {
-      this.anims.create({ key: "walk", frames: this.anims.generateFrameNumbers("player", { start: 10, end: 17 }), frameRate: 10, repeat: -1 });
-      this.anims.create({ key: "punch", frames: this.anims.generateFrameNumbers("player", { start: 41, end: 42 }), frameRate: 15, repeat: 0 });
-      this.anims.create({ key: "shoot", frames: this.anims.generateFrameNumbers("player", { start: 7, end: 10 }), frameRate: 15, repeat: 0 });
+    if (!this.anims.exists("player-idle")) {
+      this.anims.create({ key: "player-idle",     frames: this.anims.generateFrameNumbers("player_idle",     { start: 0, end: 3 }), frameRate: 6,  repeat: -1 });
+      this.anims.create({ key: "player-walk",     frames: this.anims.generateFrameNumbers("player_walk",     { start: 0, end: 6 }), frameRate: 10, repeat: -1 });
+      this.anims.create({ key: "player-attack-1", frames: this.anims.generateFrameNumbers("player_attack_1", { start: 0, end: 4 }), frameRate: 12, repeat: 0 });
+      this.anims.create({ key: "player-attack-2", frames: this.anims.generateFrameNumbers("player_attack_2", { start: 0, end: 3 }), frameRate: 12, repeat: 0 });
+      this.anims.create({ key: "player-attack-3", frames: this.anims.generateFrameNumbers("player_attack_3", { start: 0, end: 3 }), frameRate: 12, repeat: 0 });
+      this.anims.create({ key: "player-hurt",     frames: this.anims.generateFrameNumbers("player_hurt",     { start: 0, end: 1 }), frameRate: 12, repeat: 0 });
+      this.anims.create({ key: "player-dead",     frames: this.anims.generateFrameNumbers("player_dead",     { start: 0, end: 5 }), frameRate: 8,  repeat: 0 });
     }
   }
 
@@ -800,7 +815,7 @@ export default class GamePlay extends Phaser.Scene {
         this.showWaveBanner(this.waveNumber);
       } else {
         if (this.bgMusic) this.bgMusic.stop();
-        this.scene.start("Intro");
+        this.scene.start("Menu");
       }
     });
   }
@@ -1006,7 +1021,9 @@ export default class GamePlay extends Phaser.Scene {
     }
 
     const isAttacking = this.player.anims.currentAnim &&
-      (this.player.anims.currentAnim.key === "punch" || this.player.anims.currentAnim.key === "shoot") &&
+      (this.player.anims.currentAnim.key === "player-attack-1" ||
+       this.player.anims.currentAnim.key === "player-attack-2" ||
+       this.player.anims.currentAnim.key === "player-attack-3") &&
       this.player.anims.isPlaying;
 
     if (this.isDashing) {
@@ -1025,12 +1042,11 @@ export default class GamePlay extends Phaser.Scene {
         const len = Math.sqrt(dx * dx + dy * dy) || 1;
         this.lastDirection.set(dx / len, dy / len);
         body.setVelocity(dx * this.normalSpeed, dy * this.normalSpeed);
-        this.player.setFlipX(dx < 0);
-        this.player.anims.play("walk", true);
+        this.setPlayerFlipX(dx < 0);
+        this.player.anims.play("player-walk", true);
       } else {
         body.setVelocity(0);
-        this.player.anims.stop();
-        this.player.setFrame(0);
+        this.player.anims.play("player-idle", true);
       }
 
       if (Phaser.Input.Keyboard.JustDown(this.cursors.space)) {
@@ -1042,6 +1058,19 @@ export default class GamePlay extends Phaser.Scene {
     this.enemies.getChildren().forEach((enemy: any) => {
       this.updateEnemyAI(enemy, time);
     });
+  }
+
+  /** Mirrors the player sprite and adjusts the physics body offset to match. */
+  private setPlayerFlipX(flip: boolean) {
+    this.player.setFlipX(flip);
+    const bodyOffsetX = 15;
+    const bodyWidth = 30;
+    const bodyOffsetY = 68;
+    if (flip) {
+      this.player.setOffset(this.player.width - bodyWidth - bodyOffsetX, bodyOffsetY);
+    } else {
+      this.player.setOffset(bodyOffsetX, bodyOffsetY);
+    }
   }
 
   /** Performs a short dash in the last movement/aim direction with cooldown. */
