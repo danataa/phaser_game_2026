@@ -1,5 +1,4 @@
 import { GameData } from "../GameData";
-import PlayerVignettePostFX from "../pipelines/PlayerVignettePostFX";
 
 export default class GamePlay extends Phaser.Scene {
   private player: Phaser.Physics.Arcade.Sprite & { hp: number; isInvulnerable: boolean };
@@ -48,23 +47,6 @@ export default class GamePlay extends Phaser.Scene {
 
   private lastDirection: Phaser.Math.Vector2 = new Phaser.Math.Vector2(1, 0);
   private escKey: Phaser.Input.Keyboard.Key;
-
-  // Vignette post-processing
-  private vignetteFx?: PlayerVignettePostFX;
-  private vignetteRadius: number = 0.45;   // 0..1 in screen UV space
-  private vignetteIntensity: number = 0.85; // 0..1
-  private vignetteMaskKey: string = "vignette-mask";
-  private vignetteRadiusDownKey: Phaser.Input.Keyboard.Key;
-  private vignetteRadiusUpKey: Phaser.Input.Keyboard.Key;
-  private vignetteIntensityDownKey: Phaser.Input.Keyboard.Key;
-  private vignetteIntensityUpKey: Phaser.Input.Keyboard.Key;
-
-  // Light mask overlay (Graphics mask + MULTIPLY overlay)
-  private darknessOverlay: Phaser.GameObjects.Rectangle;
-  private lightMaskGraphics: Phaser.GameObjects.Graphics;
-  private lightRadiusPx: number = 240;
-  private fogFeatherPx: number = 180;
-  private darknessAlpha: number = 1;
 
   /** Scene constructor (key: GamePlay). */
   constructor() {
@@ -316,12 +298,6 @@ export default class GamePlay extends Phaser.Scene {
     this.escKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
     this.input.keyboard.addCapture([Phaser.Input.Keyboard.KeyCodes.TAB, Phaser.Input.Keyboard.KeyCodes.ESC]);
 
-    // Vignette controls
-    this.vignetteRadiusDownKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Q);
-    this.vignetteRadiusUpKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
-    this.vignetteIntensityDownKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Z);
-    this.vignetteIntensityUpKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.C);
-
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
       if (pointer.leftButtonDown()) {
         this.performAttack();
@@ -334,9 +310,6 @@ export default class GamePlay extends Phaser.Scene {
 
     // Mostra banner wave all'inizio
     this.time.delayedCall(400, () => this.showWaveBanner(this.waveNumber));
-
-    // Dynamic light mask overlay (main camera only)
-    this.setupLightMask();
   }
 
   /** Applies damage to the player with brief invulnerability, UI update, and game-over check. */
@@ -439,147 +412,6 @@ export default class GamePlay extends Phaser.Scene {
       this.anims.create({ key: "player-attack-3", frames: this.anims.generateFrameNumbers("player_attack_3", { start: 0, end: 3 }), frameRate: 12, repeat: 0 });
       this.anims.create({ key: "player-hurt",     frames: this.anims.generateFrameNumbers("player_hurt",     { start: 0, end: 1 }), frameRate: 12, repeat: 0 });
       this.anims.create({ key: "player-dead",     frames: this.anims.generateFrameNumbers("player_dead",     { start: 0, end: 5 }), frameRate: 8,  repeat: 0 });
-    }
-  }
-
-  /** Ensures the vignette mask texture exists (fallback: generate a canvas texture). */
-  private ensureVignetteMaskTexture(key: string, size: number = 512) {
-    if (this.textures.exists(key)) return;
-
-    const tex = this.textures.createCanvas(key, size, size);
-    const ctx = tex.getContext();
-
-    // Alpha 0 al centro, alpha 1 ai bordi: usiamo l'alpha come "darkness mask" nello shader.
-    ctx.clearRect(0, 0, size, size);
-    const g = ctx.createRadialGradient(size / 2, size / 2, size * 0.12, size / 2, size / 2, size / 2);
-    g.addColorStop(0.0, "rgba(0,0,0,0)");
-    g.addColorStop(0.55, "rgba(0,0,0,0)");
-    g.addColorStop(1.0, "rgba(0,0,0,1)");
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, size, size);
-    tex.refresh();
-  }
-
-  /** Registers and applies the vignette PostFX pipeline to the main camera. */
-  private setupVignetteFx() {
-    // WebGL only. In canvas renderer, pipelines are not available.
-    const renderer: any = this.sys.renderer as any;
-    if (!renderer?.pipelines?.addPostPipeline) return;
-
-    this.ensureVignetteMaskTexture(this.vignetteMaskKey);
-    renderer.pipelines.addPostPipeline("PlayerVignette", PlayerVignettePostFX);
-
-    this.cameras.main.setPostPipeline("PlayerVignette");
-    const got = this.cameras.main.getPostPipeline("PlayerVignette") as unknown;
-    const fx = (Array.isArray(got) ? got[0] : got) as PlayerVignettePostFX | undefined;
-    if (!fx) return;
-    fx.maskKey = this.vignetteMaskKey;
-    fx.radius = this.vignetteRadius;
-    fx.intensity = this.vignetteIntensity;
-    this.vignetteFx = fx;
-  }
-
-  /** Updates vignette center/radius/intensity so it follows the player. */
-  private updateVignetteFx() {
-    if (!this.vignetteFx) return;
-    const cam = this.cameras.main;
-
-    // Convert world -> normalized screen UV using camera worldView.
-    const cx = (this.player.x - cam.worldView.x) / cam.worldView.width;
-    const cy = (this.player.y - cam.worldView.y) / cam.worldView.height;
-
-    this.vignetteFx.centerX = Phaser.Math.Clamp(cx, 0, 1);
-    this.vignetteFx.centerY = Phaser.Math.Clamp(cy, 0, 1);
-    this.vignetteFx.radius = this.vignetteRadius;
-    this.vignetteFx.intensity = this.vignetteIntensity;
-  }
-
-  /** Keyboard controls for tweaking vignette radius (Q/E) and intensity (Z/C). */
-  private handleVignetteControls() {
-    if (Phaser.Input.Keyboard.JustDown(this.vignetteRadiusDownKey)) {
-      this.vignetteRadius = Phaser.Math.Clamp(this.vignetteRadius - 0.03, 0.15, 1);
-    }
-    if (Phaser.Input.Keyboard.JustDown(this.vignetteRadiusUpKey)) {
-      this.vignetteRadius = Phaser.Math.Clamp(this.vignetteRadius + 0.03, 0.15, 1);
-    }
-    if (Phaser.Input.Keyboard.JustDown(this.vignetteIntensityDownKey)) {
-      this.vignetteIntensity = Phaser.Math.Clamp(this.vignetteIntensity - 0.05, 0, 1);
-    }
-    if (Phaser.Input.Keyboard.JustDown(this.vignetteIntensityUpKey)) {
-      this.vignetteIntensity = Phaser.Math.Clamp(this.vignetteIntensity + 0.05, 0, 1);
-    }
-  }
-
-  /**
-   * Creates a full-screen dark overlay and a circular GeometryMask hole that follows the player.
-   * The overlay uses MULTIPLY so the world stays visible (but dark) outside the circle.
-   */
-  private setupLightMask() {
-    this.darknessOverlay = this.add.rectangle(0, 0, GameData.globals.gameWidth, GameData.globals.gameHeight, 0x000000, this.darknessAlpha)
-      .setOrigin(0)
-      .setScrollFactor(0)
-      .setDepth(1400);
-
-    // For full fog-of-war we want a solid black occlusion (not a multiply darken).
-    this.darknessOverlay.setBlendMode(Phaser.BlendModes.NORMAL);
-
-    // Mask graphics live in screen space (scrollFactor 0). We invert alpha to create a "hole".
-    this.lightMaskGraphics = this.add.graphics().setScrollFactor(0).setDepth(1401);
-    this.lightMaskGraphics.setVisible(false);
-    const mask = this.lightMaskGraphics.createGeometryMask();
-    mask.invertAlpha = true;
-    this.darknessOverlay.setMask(mask);
-
-    // Keep HUD readable by not rendering the darkness layer in the HUD camera.
-    if (this.hudCamera) {
-      this.hudCamera.ignore(this.darknessOverlay);
-      this.hudCamera.ignore(this.lightMaskGraphics);
-    }
-
-    // No camera post-processing: this fog-of-war is implemented purely via overlay + mask.
-  }
-
-  /** Updates the circular mask position so it stays centered on the player every frame. */
-  private updateLightMask() {
-    if (!this.darknessOverlay || !this.lightMaskGraphics) return;
-    const cam = this.cameras.main;
-
-    // Player screen position (pixels) relative to the camera viewport.
-    const sx = (this.player.x - cam.worldView.x) * cam.zoom;
-    const sy = (this.player.y - cam.worldView.y) * cam.zoom;
-
-    this.lightMaskGraphics.clear();
-    this.lightMaskGraphics.fillStyle(0xffffff, 1);
-    // Solid clear circle.
-    this.lightMaskGraphics.fillCircle(sx, sy, this.lightRadiusPx);
-
-    // Feather ring: gradually reduce mask alpha towards the edge so the overlay fades in.
-    // This avoids camera post-fx while still giving a vignette-like falloff.
-    const steps = 10;
-    const stepW = this.fogFeatherPx / steps;
-    for (let i = 1; i <= steps; i++) {
-      const t = i / steps;
-      const a = 1 - t;
-      this.lightMaskGraphics.lineStyle(stepW + 1, 0xffffff, a);
-      this.lightMaskGraphics.strokeCircle(sx, sy, this.lightRadiusPx + i * stepW);
-    }
-
-    this.darknessOverlay.setAlpha(this.darknessAlpha);
-  }
-
-  /** Keyboard controls for tweaking light radius (Q/E) and darkness intensity (Z/C). */
-  private handleLightMaskControls() {
-    if (Phaser.Input.Keyboard.JustDown(this.vignetteRadiusDownKey)) {
-      this.lightRadiusPx = Phaser.Math.Clamp(this.lightRadiusPx - 15, 60, 900);
-    }
-    if (Phaser.Input.Keyboard.JustDown(this.vignetteRadiusUpKey)) {
-      this.lightRadiusPx = Phaser.Math.Clamp(this.lightRadiusPx + 15, 60, 900);
-    }
-    if (Phaser.Input.Keyboard.JustDown(this.vignetteIntensityDownKey)) {
-      this.darknessAlpha = Phaser.Math.Clamp(this.darknessAlpha - 0.05, 0, 0.95);
-    }
-    if (Phaser.Input.Keyboard.JustDown(this.vignetteIntensityUpKey)) {
-      this.darknessAlpha = Phaser.Math.Clamp(this.darknessAlpha + 0.05, 0, 0.95);
     }
   }
 
@@ -1010,9 +842,6 @@ export default class GamePlay extends Phaser.Scene {
     if (this.isGameOver || this.isPaused) return;
 
     const body = this.player.body as Phaser.Physics.Arcade.Body;
-
-    this.updateLightMask();
-    this.handleLightMaskControls();
 
     if (Phaser.Input.Keyboard.JustDown(this.shiftKey)) this.startDash();
     if (Phaser.Input.Keyboard.JustDown(this.tabKey)) {
