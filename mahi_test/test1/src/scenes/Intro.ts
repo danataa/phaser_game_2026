@@ -1,7 +1,4 @@
 export default class Intro extends Phaser.Scene {
-  private map: Phaser.Tilemaps.Tilemap;
-  private tileset: Phaser.Tilemaps.Tileset;
-
   private bgMusic: Phaser.Sound.BaseSound;
   private optionsContainer: Phaser.GameObjects.Container;
 
@@ -18,56 +15,59 @@ export default class Intro extends Phaser.Scene {
   }
 
   create() {
+    // Background
+    this.add.rectangle(0, 0, 1280, 800, 0x0a0a1a).setOrigin(0);
+
+    // Titolo
+    this.add.text(this.cameras.main.centerX, 90, "⚔ DUNGEON HUNT ⚔", {
+      font: "48px Arial",
+      color: "#ffaa00",
+      stroke: "#000000",
+      strokeThickness: 6,
+    }).setOrigin(0.5);
+
     // Background Music
-    /* if (!this.sound.get("music")) {
+    if (!this.sound.get("music")) {
       this.bgMusic = this.sound.add("music", { loop: true, volume: 0.5 });
       this.bgMusic.play();
     } else {
       this.bgMusic = this.sound.get("music");
-      if (!this.bgMusic.isPlaying) this.bgMusic.play();
-    } */
+      if (!(this.bgMusic as any).isPlaying) this.bgMusic.play();
+    }
+
+    const btnStyle = { font: "32px Arial", color: "#fff", backgroundColor: "#222244", padding: { x: 30, y: 12 }, align: "center" };
 
     // Pulsante Start
-    const startButton = this.add.text(this.cameras.main.centerX, 200, "START", {
-      font: "32px Arial",
-      color: "#fff",
-      backgroundColor: "#222",
-      padding: { x: 20, y: 10 },
-      align: "center"
-    })
+    const startButton = this.add.text(this.cameras.main.centerX, 220, "▶  INIZIA", btnStyle)
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true })
-      .on("pointerdown", () => {
-        this.scene.start("GamePlay");
-      });
+      .on("pointerover", function(this: Phaser.GameObjects.Text) { this.setBackgroundColor("#4444aa"); })
+      .on("pointerout", function(this: Phaser.GameObjects.Text) { this.setBackgroundColor("#222244"); })
+      .on("pointerdown", () => { this.scene.start("GamePlay"); });
 
     // Pulsante Options
-    const optionsButton = this.add.text(this.cameras.main.centerX, 270, "OPTIONS", {
-      font: "32px Arial",
-      color: "#fff",
-      backgroundColor: "#222",
-      padding: { x: 20, y: 10 },
-      align: "center"
-    })
+    const optionsButton = this.add.text(this.cameras.main.centerX, 300, "⚙  OPTIONS", btnStyle)
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true })
-      .on("pointerdown", () => {
-        this.toggleOptions();
-      });
+      .on("pointerover", function(this: Phaser.GameObjects.Text) { this.setBackgroundColor("#4444aa"); })
+      .on("pointerout", function(this: Phaser.GameObjects.Text) { this.setBackgroundColor("#222244"); })
+      .on("pointerdown", () => { this.toggleOptions(); });
 
     // Pulsante Credits
-    const creditsButton = this.add.text(this.cameras.main.centerX, 340, "CREDITS", {
-      font: "32px Arial",
-      color: "#fff",
-      backgroundColor: "#222",
-      padding: { x: 20, y: 10 },
-      align: "center"
-    })
+    const creditsButton = this.add.text(this.cameras.main.centerX, 380, "★  CREDITS", btnStyle)
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true })
+      .on("pointerover", function(this: Phaser.GameObjects.Text) { this.setBackgroundColor("#4444aa"); })
+      .on("pointerout", function(this: Phaser.GameObjects.Text) { this.setBackgroundColor("#222244"); })
       .on("pointerdown", () => {
-        this.add.text(this.cameras.main.centerX, 550, "Created by Yand", { font: "20px Arial", color: "#fff" }).setOrigin(0.5);
+        this.add.text(this.cameras.main.centerX, 560, "Created by Yand", { font: "20px Arial", color: "#aaaaff" }).setOrigin(0.5);
       });
+
+    // Istruzioni
+    this.add.text(this.cameras.main.centerX, 480, "WASD/Frecce: Muovi  |  Click: Attacca  |  TAB: Cambia arma  |  SHIFT: Sprint  |  ESC: Pausa", {
+      font: "16px Arial",
+      color: "#888888",
+    }).setOrigin(0.5);
 
     this.setupOptionsUI();
   }

@@ -31,6 +31,15 @@ export default class GamePlay extends Phaser.Scene {
   private spawnEvent: Phaser.Time.TimerEvent;
   private bgMusic: Phaser.Sound.BaseSound;
 
+  // Wave & Score
+  private waveNumber: number = 1;
+  private totalScore: number = 0;
+  private lastKillTime: number = 0;
+  private killStreak: number = 0;
+  private healthPickups: Phaser.Physics.Arcade.Group;
+  private waveText: Phaser.GameObjects.Text;
+  private scoreText: Phaser.GameObjects.Text;
+
   // Pause
   private pauseOverlay: Phaser.GameObjects.Container;
 
@@ -44,6 +53,10 @@ export default class GamePlay extends Phaser.Scene {
   create() {
     this.isGameOver = false;
     this.enemiesKilled = 0;
+    this.totalScore = 0;
+    this.killStreak = 0;
+    this.lastKillTime = 0;
+    this.waveNumber = 1;
     this.lastDirection.set(1, 0);
     this.cameras.main.setBackgroundColor(0x000000);
 
@@ -61,6 +74,7 @@ export default class GamePlay extends Phaser.Scene {
     this.bullets = this.physics.add.group();
     this.enemyBullets = this.physics.add.group();
     this.enemies = this.physics.add.group();
+    this.healthPickups = this.physics.add.group();
 
     this.player = this.physics.add.sprite(200, 200, "player") as any;
     this.player.hp = 100;
@@ -95,6 +109,8 @@ export default class GamePlay extends Phaser.Scene {
     this.cameras.main.ignore(this.sprintText);
     this.cameras.main.ignore(this.objectiveText);
     this.cameras.main.ignore(this.pauseOverlay);
+    this.cameras.main.ignore(this.waveText);
+    this.cameras.main.ignore(this.scoreText);
 
     if (!this.anims.exists("mago-idle")) {
       this.anims.create({
@@ -131,8 +147,10 @@ export default class GamePlay extends Phaser.Scene {
       callback: () => {
         if (!this.isGameOver) {
           this.spawnEnemy(map, true);
+          const minDelay = Math.max(500, 2000 - (this.waveNumber - 1) * 200);
+          const maxDelay = Math.max(1000, 4000 - (this.waveNumber - 1) * 200);
           this.spawnEvent.reset({
-            delay: Phaser.Math.Between(2000, 4000),
+            delay: Phaser.Math.Between(minDelay, maxDelay),
             callback: this.spawnEvent.callback,
             callbackScope: this
           });
@@ -153,11 +171,20 @@ export default class GamePlay extends Phaser.Scene {
 
     this.physics.add.overlap(this.enemyBullets, this.player, (p: any, b: any) => {
       b.destroy();
-      this.handlePlayerDamage();
+      this.handlePlayerDamage(8);
     });
 
-    this.physics.add.collider(this.player, this.enemies, (p, e) => {
-      this.handlePlayerDamage();
+    this.physics.add.collider(this.player, this.enemies, (_p: any, e: any) => {
+      const dmg = e.type === "demon" ? 15 : e.type === "mago" ? 8 : 5;
+      this.handlePlayerDamage(dmg);
+    });
+
+    this.physics.add.overlap(this.player, this.healthPickups, (_p: any, pickup: any) => {
+      if (!pickup.active) return;
+      pickup.destroy();
+      this.player.hp = Math.min(100, this.player.hp + 20);
+      this.updatePlayerHealthBar();
+      this.showFloatingText(this.player.x, this.player.y - 40, "+20 HP", "#00ff00", true);
     });
 
     this.physics.add.collider(this.enemies, this.enemies);
@@ -180,13 +207,18 @@ export default class GamePlay extends Phaser.Scene {
     this.input.keyboard.on("keydown-ESC", () => {
       this.togglePause();
     });
+
+    // Mostra banner wave all'inizio
+    this.time.delayedCall(400, () => this.showWaveBanner(this.waveNumber));
   }
 
-  handlePlayerDamage() {
+  handlePlayerDamage(damage: number = 10) {
     if (!this.player.isInvulnerable && !this.isGameOver) {
-      this.player.hp -= 10;
+      this.player.hp -= damage;
       this.player.isInvulnerable = true;
       this.player.setTint(0xff0000);
+      this.cameras.main.shake(150, 0.008);
+      this.showFloatingText(this.player.x, this.player.y - 40, `-${damage}`, "#ff4444", true);
       this.updatePlayerHealthBar();
       if (this.player.hp <= 0) this.showEndScreen(false);
       else {
@@ -258,6 +290,8 @@ export default class GamePlay extends Phaser.Scene {
     this.abilityText = this.add.text(20, 50, "Abilità: PUGNO [TAB/LMB]", { fontSize: "20px", color: "#ffffff" }).setScrollFactor(0).setDepth(1000);
     this.sprintText = this.add.text(20, 80, "Sprint: PRONTO [SHIFT]", { fontSize: "20px", color: "#00ff00" }).setScrollFactor(0).setDepth(1000);
     this.objectiveText = this.add.text(GameData.globals.gameWidth - 300, 20, `Obiettivo: 0/${this.targetKills}`, { fontSize: "24px", color: "#ffffff", backgroundColor: "#00000066" }).setScrollFactor(0).setDepth(1000);
+    this.waveText = this.add.text(GameData.globals.gameWidth / 2, 20, `Wave ${this.waveNumber}`, { fontSize: "22px", color: "#ffaa00", stroke: "#000000", strokeThickness: 3 }).setOrigin(0.5).setScrollFactor(0).setDepth(1000);
+    this.scoreText = this.add.text(GameData.globals.gameWidth - 300, 52, "Score: 0", { fontSize: "20px", color: "#ffffff", backgroundColor: "#00000066" }).setScrollFactor(0).setDepth(1000);
   }
 
   setupPlayerAnims() {
@@ -302,21 +336,24 @@ export default class GamePlay extends Phaser.Scene {
     let animKey: string;
     let hp: number;
 
+    const waveHpBonus = Math.floor((this.waveNumber - 1) * 0.5);
+    const waveSpeedBonus = (this.waveNumber - 1) * 8;
+
     if (rand === 0) {
       type = "skeleton";
       textureKey = "scheletro_run";
       animKey = "scheletro-run";
-      hp = 2;
+    hp = 1 + waveHpBonus;
     } else if (rand === 1) {
       type = "mago";
       textureKey = "mago";
       animKey = "mago-idle";
-      hp = 3;
+      hp = 2 + waveHpBonus;
     } else {
       type = "demon";
       textureKey = "demon_run";
       animKey = "demon-run";
-      hp = 5;
+      hp = 4 + waveHpBonus;
     }
 
     const enemy = this.enemies.create(x, y, textureKey) as any;
@@ -324,8 +361,17 @@ export default class GamePlay extends Phaser.Scene {
     enemy.maxHp = enemy.hp;
     enemy.type = type;
     enemy.state = "CHASE";
+    enemy.isDying = false;
     enemy.lastAttackTime = 0;
     enemy.healthBar = this.add.graphics();
+    // Velocità scalata per wave
+    if (type === "skeleton") {
+      enemy.chaseSpeed = 120 + waveSpeedBonus;
+    } else if (type === "mago") {
+      enemy.chaseSpeed = 160 + waveSpeedBonus;
+    } else {
+      enemy.chaseSpeed = 80 + waveSpeedBonus;
+    }
 
     if (this.hudCamera) {
       this.hudCamera.ignore(enemy);
@@ -354,15 +400,34 @@ export default class GamePlay extends Phaser.Scene {
   }
 
   damageEnemy(e: any) {
+    if (!e.active || e.isDying) return;
     e.hp -= 1;
-    e.setTint(0xff0000);
-    this.time.delayedCall(200, () => e.clearTint());
+    this.showFloatingText(e.x, e.y - 40, "-1", "#ffff00", true);
     if (e.hp <= 0) {
-      e.healthBar.destroy();
-      e.destroy();
+      e.isDying = true;
+      // Flash bianco poi scompare
+      e.setTint(0xffffff);
+      e.setAlpha(0.8);
+      this.time.delayedCall(150, () => {
+        if (e.healthBar) e.healthBar.destroy();
+        if (e.active) e.destroy();
+      });
       this.enemiesKilled++;
+      // Score per tipo
+      const pts = e.type === "demon" ? 30 : e.type === "mago" ? 20 : 10;
+      this.totalScore += pts;
+      this.showFloatingText(e.x, e.y - 20, `+${pts}`, "#ffd700", true);
+      this.updateKillStreak();
       this.objectiveText.setText(`Obiettivo: ${this.enemiesKilled}/${this.targetKills}`);
+      this.scoreText.setText(`Score: ${this.totalScore}`);
+      // Drop vita (30% di probabilità)
+      if (Phaser.Math.Between(0, 99) < 30) {
+        this.dropHealthPickup(e.x, e.y);
+      }
       if (this.enemiesKilled >= this.targetKills && !this.isGameOver) this.showEndScreen(true);
+    } else {
+      e.setTint(0xff0000);
+      this.time.delayedCall(150, () => { if (e.active) e.clearTint(); });
     }
   }
 
@@ -392,28 +457,37 @@ export default class GamePlay extends Phaser.Scene {
     this.enemyBullets.clear(true, true);
     this.player.setTint(victory ? 0x00ff00 : 0xff0000);
     const overlay = this.add.rectangle(GameData.globals.gameWidth / 2, GameData.globals.gameHeight / 2, GameData.globals.gameWidth, GameData.globals.gameHeight, 0x000000, 0.7).setScrollFactor(0).setDepth(2000);
-    const title = this.add.text(GameData.globals.gameWidth / 2, GameData.globals.gameHeight / 2 - 100, victory ? "VITTORIA!" : "GAME OVER", { fontSize: "60px", color: victory ? "#00ff00" : "#ff0000" }).setOrigin(0.5).setScrollFactor(0).setDepth(2001);
-    const msg = this.add.text(GameData.globals.gameWidth / 2, GameData.globals.gameHeight / 2 - 20, `Nemici sconfitti: ${this.enemiesKilled}`, { fontSize: "30px", color: "#ffffff" }).setOrigin(0.5).setScrollFactor(0).setDepth(2001);
-    const btnRestart = this.add.text(GameData.globals.gameWidth / 2, GameData.globals.gameHeight / 2 + 60, " RIAVVIA GIOCO ", { fontSize: "32px", color: "#ffffff", backgroundColor: "#00aa00", padding: { x: 20, y: 10 } }).setOrigin(0.5).setScrollFactor(0).setDepth(2001).setInteractive({ useHandCursor: true });
+    const title = this.add.text(GameData.globals.gameWidth / 2, GameData.globals.gameHeight / 2 - 120, victory ? "🏆 VITTORIA!" : "💀 GAME OVER", { fontSize: "60px", color: victory ? "#00ff00" : "#ff0000", stroke: "#000000", strokeThickness: 4 }).setOrigin(0.5).setScrollFactor(0).setDepth(2001);
+    const waveMsg = this.add.text(GameData.globals.gameWidth / 2, GameData.globals.gameHeight / 2 - 50, `Wave ${this.waveNumber}  |  Score: ${this.totalScore}`, { fontSize: "28px", color: "#ffaa00" }).setOrigin(0.5).setScrollFactor(0).setDepth(2001);
+    const msg = this.add.text(GameData.globals.gameWidth / 2, GameData.globals.gameHeight / 2, `Nemici sconfitti: ${this.enemiesKilled}`, { fontSize: "26px", color: "#ffffff" }).setOrigin(0.5).setScrollFactor(0).setDepth(2001);
+    const btnRestart = this.add.text(GameData.globals.gameWidth / 2, GameData.globals.gameHeight / 2 + 70, " RIAVVIA ", { fontSize: "32px", color: "#ffffff", backgroundColor: "#00aa00", padding: { x: 20, y: 10 } }).setOrigin(0.5).setScrollFactor(0).setDepth(2001).setInteractive({ useHandCursor: true });
+    btnRestart.on("pointerover", function(this: Phaser.GameObjects.Text) { this.setBackgroundColor("#00cc00"); });
+    btnRestart.on("pointerout", function(this: Phaser.GameObjects.Text) { this.setBackgroundColor("#00aa00"); });
     btnRestart.on("pointerdown", () => {
       if (this.bgMusic) this.bgMusic.stop();
       this.scene.restart();
     });
-    const btnAction = this.add.text(GameData.globals.gameWidth / 2, GameData.globals.gameHeight / 2 + 140, victory ? " CONTINUA (Endless) " : " TORNA AL MENU ", { fontSize: "32px", color: "#ffffff", backgroundColor: "#333333", padding: { x: 20, y: 10 } }).setOrigin(0.5).setScrollFactor(0).setDepth(2001).setInteractive({ useHandCursor: true });
+    const btnAction = this.add.text(GameData.globals.gameWidth / 2, GameData.globals.gameHeight / 2 + 150, victory ? " PROSSIMA WAVE ▶ " : " MENU PRINCIPALE ", { fontSize: "32px", color: "#ffffff", backgroundColor: "#333333", padding: { x: 20, y: 10 } }).setOrigin(0.5).setScrollFactor(0).setDepth(2001).setInteractive({ useHandCursor: true });
+    btnAction.on("pointerover", function(this: Phaser.GameObjects.Text) { this.setBackgroundColor("#555555"); });
+    btnAction.on("pointerout", function(this: Phaser.GameObjects.Text) { this.setBackgroundColor("#333333"); });
 
     this.cameras.main.ignore(overlay);
     this.cameras.main.ignore(title);
+    this.cameras.main.ignore(waveMsg);
     this.cameras.main.ignore(msg);
     this.cameras.main.ignore(btnRestart);
     this.cameras.main.ignore(btnAction);
 
     btnAction.on("pointerdown", () => {
       if (victory) {
+        this.waveNumber++;
+        this.targetKills += 20;
         this.isGameOver = false;
         this.physics.resume();
-        overlay.destroy(); title.destroy(); msg.destroy(); btnRestart.destroy(); btnAction.destroy();
-        this.targetKills += 20;
+        overlay.destroy(); title.destroy(); waveMsg.destroy(); msg.destroy(); btnRestart.destroy(); btnAction.destroy();
         this.objectiveText.setText(`Obiettivo: ${this.enemiesKilled}/${this.targetKills}`);
+        this.waveText.setText(`Wave ${this.waveNumber}`);
+        this.showWaveBanner(this.waveNumber);
       } else {
         if (this.bgMusic) this.bgMusic.stop();
         this.scene.start("Intro");
@@ -422,7 +496,7 @@ export default class GamePlay extends Phaser.Scene {
   }
 
   private updateEnemyAI(enemy: any, time: number) {
-    if (this.isGameOver || this.isPaused) return;
+    if (this.isGameOver || this.isPaused || enemy.isDying) return;
 
     const dist = Phaser.Math.Distance.Between(enemy.x, enemy.y, this.player.x, this.player.y);
     const angle = Phaser.Math.Angle.Between(enemy.x, enemy.y, this.player.x, this.player.y);
@@ -444,34 +518,51 @@ export default class GamePlay extends Phaser.Scene {
   }
 
   private updateSkeletonAI(enemy: any, dist: number, angle: number, time: number) {
-    // Lo scheletro insegue e quando è vicino fa un piccolo scatto (lunge)
     if (dist < 120 && time > enemy.lastAttackTime + 2000) {
-      // Attacco Lunge
       enemy.lastAttackTime = time;
-      this.physics.velocityFromRotation(angle, 400, enemy.body.velocity);
+      this.physics.velocityFromRotation(angle, 400 + (enemy.chaseSpeed - 120) * 0.5, enemy.body.velocity);
       enemy.setTint(0xffaa00);
-      this.time.delayedCall(300, () => enemy.clearTint());
+      this.time.delayedCall(300, () => { if (enemy.active) enemy.clearTint(); });
     } else if (dist > 30) {
-      this.physics.moveToObject(enemy, this.player, 120);
+      this.physics.moveToObject(enemy, this.player, enemy.chaseSpeed);
     }
   }
 
   private updateMagoAI(enemy: any, dist: number, angle: number, time: number) {
-    // IA "Smart": mantiene distanza e si muove in modo intelligente
-    if (dist > 400) {
-      // Troppo lontano, si avvicina
-      this.physics.moveToObject(enemy, this.player, 120);
-    } else if (dist < 250) {
-      // Troppo vicino, scappa via dal player
-      this.physics.velocityFromRotation(angle, -150, enemy.body.velocity);
-    } else {
-      // Distanza ottimale (250-400), si muove un po' lateralmente (strafing)
-      // Aggiunge un movimento perpendicolare (strafing)
-      const strafeAngle = angle + Math.PI / 2;
-      enemy.body.velocity.set(Math.cos(strafeAngle) * 50, Math.sin(strafeAngle) * 50);
+    // Inizializza la direzione di strafe se non esiste
+    if (enemy.strafeDir === undefined) {
+      enemy.strafeDir = 1;
+      enemy.strafeChangeTime = 0;
+    }
+    // Alterna la direzione di strafe ogni 1.5-2.5 secondi
+    if (time > enemy.strafeChangeTime) {
+      enemy.strafeDir *= -1;
+      enemy.strafeChangeTime = time + Phaser.Math.Between(1500, 2500);
+    }
 
-      // Spara se pronto
-      if (time > enemy.lastAttackTime + Phaser.Math.Between(1500, 3000)) {
+    if (dist > 380) {
+      // Troppo lontano: si avvicina veloce e spara in movimento
+      this.physics.moveToObject(enemy, this.player, enemy.chaseSpeed);
+      if (time > enemy.lastAttackTime + Phaser.Math.Between(1800, 2800)) {
+        enemy.lastAttackTime = time;
+        this.enemyShoot(enemy);
+      }
+    } else if (dist < 200) {
+      // Troppo vicino: scappa rapidamente in diagonale
+      const escapeAngle = angle + enemy.strafeDir * 0.4;
+      this.physics.velocityFromRotation(escapeAngle, -(enemy.chaseSpeed + 40), enemy.body.velocity);
+      // Spara anche mentre scappa
+      if (time > enemy.lastAttackTime + Phaser.Math.Between(800, 1500)) {
+        enemy.lastAttackTime = time;
+        this.enemyShoot(enemy);
+      }
+    } else {
+      // Distanza ottimale (200-380): strafing alternato + tiro frequente
+      const strafeAngle = angle + (Math.PI / 2) * enemy.strafeDir;
+      const strafeSpeed = 80 + (enemy.chaseSpeed - 160) * 0.5;
+      enemy.body.velocity.set(Math.cos(strafeAngle) * strafeSpeed, Math.sin(strafeAngle) * strafeSpeed);
+
+      if (time > enemy.lastAttackTime + Phaser.Math.Between(900, 2000)) {
         enemy.lastAttackTime = time;
         this.enemyShoot(enemy);
       }
@@ -486,18 +577,16 @@ export default class GamePlay extends Phaser.Scene {
     }
 
     if (dist > 150 && dist < 400 && time > enemy.lastAttackTime + 4000) {
-      // Inizia carica
       enemy.state = "CHARGE";
       enemy.lastAttackTime = time;
       enemy.setTint(0xff00ff);
-      this.physics.velocityFromRotation(angle, 500, enemy.body.velocity);
+      this.physics.velocityFromRotation(angle, 500 + (enemy.chaseSpeed - 80) * 2, enemy.body.velocity);
       
       this.time.delayedCall(1000, () => {
-        enemy.state = "CHASE";
-        enemy.clearTint();
+        if (enemy.active) { enemy.state = "CHASE"; enemy.clearTint(); }
       });
     } else {
-      this.physics.moveToObject(enemy, this.player, 80);
+      this.physics.moveToObject(enemy, this.player, enemy.chaseSpeed);
     }
   }
 
@@ -574,7 +663,7 @@ export default class GamePlay extends Phaser.Scene {
   startSprint() {
     this.isSprinting = true;
     this.canSprint = false;
-    this.sprintText.setText("Sprint: ATTIVO!").setColor("#ffff00");
+    this.sprintText.setText("Sprint: ATTIVO! ⚡").setColor("#ffff00");
     this.player.setAlpha(0.7);
     this.time.delayedCall(5000, () => {
       this.isSprinting = false;
@@ -584,6 +673,97 @@ export default class GamePlay extends Phaser.Scene {
         this.canSprint = true;
         this.sprintText.setText("Sprint: PRONTO [SHIFT]").setColor("#00ff00");
       });
+    });
+  }
+
+  // --- Metodi nuovi ---
+
+  showFloatingText(x: number, y: number, text: string, color: string, worldSpace: boolean) {
+    const txt = this.add.text(x, y, text, {
+      fontSize: "22px",
+      color: color,
+      stroke: "#000000",
+      strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(1500);
+    if (worldSpace) {
+      // Visibile nella scena world, nascosto dalla hudCamera
+      if (this.hudCamera) this.hudCamera.ignore(txt);
+    } else {
+      txt.setScrollFactor(0);
+      this.cameras.main.ignore(txt);
+    }
+    this.tweens.add({
+      targets: txt,
+      y: y - 60,
+      alpha: 0,
+      duration: 900,
+      ease: "Power1",
+      onComplete: () => txt.destroy(),
+    });
+  }
+
+  dropHealthPickup(x: number, y: number) {
+    const pickup = this.healthPickups.create(x, y, "phaser") as any;
+    pickup.setTint(0x00ff44);
+    pickup.setScale(0.14);
+    pickup.setBounce(0.4);
+    pickup.setCollideWorldBounds(true);
+    if (this.hudCamera) this.hudCamera.ignore(pickup);
+    // Piccolo tween di "pop" per renderlo visibile
+    this.tweens.add({ targets: pickup, scaleX: 0.18, scaleY: 0.18, duration: 150, yoyo: true });
+  }
+
+  showWaveBanner(wave: number) {
+    const cx = GameData.globals.gameWidth / 2;
+    const cy = GameData.globals.gameHeight / 2;
+    const txt = this.add.text(cx, cy, `⚔  WAVE ${wave}  ⚔`, {
+      fontSize: "72px",
+      color: "#ffaa00",
+      stroke: "#000000",
+      strokeThickness: 7,
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(2500).setAlpha(0);
+    this.cameras.main.ignore(txt);
+    this.tweens.add({
+      targets: txt,
+      alpha: 1,
+      duration: 350,
+      yoyo: true,
+      hold: 1000,
+      onComplete: () => txt.destroy(),
+    });
+  }
+
+  updateKillStreak() {
+    const now = this.time.now;
+    if (now - this.lastKillTime < 2000) {
+      this.killStreak++;
+      if (this.killStreak >= 2) {
+        this.showStreakText(`x${this.killStreak} COMBO! 🔥`);
+      }
+    } else {
+      this.killStreak = 1;
+    }
+    this.lastKillTime = now;
+  }
+
+  showStreakText(text: string) {
+    const cx = GameData.globals.gameWidth / 2;
+    const cy = GameData.globals.gameHeight / 2 - 120;
+    const txt = this.add.text(cx, cy, text, {
+      fontSize: "34px",
+      color: "#ffff00",
+      stroke: "#000000",
+      strokeThickness: 4,
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(1600).setAlpha(0);
+    this.cameras.main.ignore(txt);
+    this.tweens.add({
+      targets: txt,
+      alpha: 1,
+      y: cy - 25,
+      duration: 250,
+      yoyo: true,
+      hold: 600,
+      onComplete: () => txt.destroy(),
     });
   }
 }
