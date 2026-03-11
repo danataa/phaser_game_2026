@@ -2,7 +2,7 @@
 
 Questo diagramma è ottimizzato per la visualizzazione su GitHub (Mermaid), minimizzando le sovrapposizioni delle frecce e rendendo chiari i compiti del team e dell'AI.
 
-## 📊 Schema Classi (Ottimizzato per GitHub)
+## 📊 Schema Classi 
 
 ```mermaid
 classDiagram
