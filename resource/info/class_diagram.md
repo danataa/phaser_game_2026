@@ -1,8 +1,10 @@
 # Diagramma delle Classi Semplificato: (RE)VOLUTION
 
-Questo diagramma riduce la complessità per rendere lo sviluppo immediato, intuitivo e ideale per la collaborazione con l'AI.
+Questo diagramma è ottimizzato per dividere la gestione dei flussi di gioco (Ondate) dalla logica individuale dei personaggi (AI), facilitando lo sviluppo parallelo e l'uso dell'AI.
 
 ## 📊 Schema Classi
+Freccia vuota = EREDITA
+Rombo pieno = POSSIEDE
 
 ```mermaid
 classDiagram
@@ -25,17 +27,19 @@ classDiagram
         +souls
         +perks[2]
         +handleInput()
-        +usePerk()
     }
 
     class Enemy {
         +type
+        +target: Player
         +updateAI()
     }
 
     class WaveManager {
         +currentWave
-        +spawnLogic()
+        +enemiesGroup: Phaser.GameObjects.Group
+        +spawnWave()
+        +checkWaveEnd()
         +openShop()
     }
 
@@ -44,45 +48,45 @@ classDiagram
         +effect()
     }
 
-    GamePlay --* Player : Possiede
-    GamePlay --* WaveManager : Possiede
-    Actor <|-- Player : Eredita
-    Actor <|-- Enemy : Eredita
+    GamePlay --* Player : 
+    GamePlay --* WaveManager : 
+    WaveManager "1" o-- "*" Enemy : Gestisce (Lista Istanze)
+    Actor <|-- Player : 
+    Actor <|-- Enemy : 
     Player o-- Perk : Usa
-    WaveManager ..> Enemy : Spawna
+    Enemy ..> Player : Insegue/Attacca
 ```
 
 ---
 
-## 📂 Descrizione delle Classi e Relazioni
+## 📂 Descrizione delle Classi e Relazioni Migliorate
 
-### 1. **GamePlay (La Scena)**
-È il punto di ingresso. Collega il giocatore e la logica delle ondate.
-*   **Relazione**: "Possiede" le istanze di Player e WaveManager. È il "collante" del gioco.
+### 1. **WaveManager (Il Regista)**
+Gestisce il ciclo di vita dell'ondata. 
+*   **Relazione**: Possiede il riferimento a tutti i nemici vivi tramite `enemiesGroup`.
+*   **Compito**: Decide *quando* e *quanti* nemici creare. Quando il gruppo è vuoto, attiva la fase Shop.
 
-### 2. **Actor (Classe Base)**
-Definisce le proprietà fisiche comuni: punti vita (HP), movimento e ricezione danni.
-*   **Relazione**: È la classe genitore (**Ereditarietà**) di Player e Enemy. Evita la duplicazione di codice fondamentale.
+### 2. **Enemy (La Logica Individuale)**
+Ogni nemico è un'entità autonoma.
+*   **Relazione**: Riceve il `Player` come bersaglio (target) per poterlo inseguire.
+*   **Compito**: La funzione `updateAI()` contiene il comportamento specifico (es. lo Scheletro che carica o il Demone che mantiene la distanza). 
+*   **Vantaggio AI**: Puoi chiedere all'AI di riscrivere solo `updateAI()` per creare nuovi pattern di attacco senza rischiare di rompere il sistema delle ondate.
 
-### 3. **Player (Il Protagonista)**
-Gestisce l'input del giocatore, la raccolta delle anime e l'attivazione dei Perk.
-*   **Relazione**: "Usa" oggetti di tipo Perk. È il centro dell'azione.
+### 3. **Actor (La Base Fisica)**
+Classe astratta che gestisce ciò che è comune (vita, movimento base, collisioni).
+*   **Ereditarietà**: Sia `Player` che `Enemy` sono `Actor`.
 
-### 4. **Enemy (Il Bestiario)**
-Gestisce i diversi comportamenti dei nemici (distanza per il Demone, carica per lo Scheletro).
-*   **Sviluppo AI**: È facile chiedere all'AI di "aggiungere un nuovo tipo di comportamento in Enemy" senza influenzare il movimento del Player.
+### 4. **Player (Il Protagonista)**
+Gestisce l'input e l'uso dei Perk.
+*   **Relazione**: Viene "puntato" dai nemici e "usa" i Perk acquistati.
 
-### 5. **WaveManager (Progressione)**
-Controlla il flusso del gioco: inizio ondata, spawn dei nemici e passaggio alla fase di Shop.
-*   **Relazione**: Crea i nemici e monitora lo stato della partita.
-
-### 6. **Perk (Abilità Speciali)**
-Classi piccole e mirate per Scatto, Cura, ecc.
-*   **Modularità**: Ogni Perk può essere un file separato, permettendo a più persone di crearne di nuovi senza generare conflitti nel codice.
+### 5. **Perk (Abilità Modulari)**
+Abilità esterne che modificano il comportamento del Player.
+*   **Modularità**: Essendo classi separate, l'AI può generare infiniti perk senza conoscere la logica complessa del gioco.
 
 ---
 
-## 🚀 Vantaggi della Semplificazione
-*   **Intuitività**: La gerarchia è piatta e facile da seguire per un nuovo programmatore.
-*   **AI-Ready**: Ogni classe ha un compito così specifico che l'AI può generare intere funzioni con un prompt minimo.
-*   **Velocità**: Meno classi significa meno "collegamenti" da gestire manualmente, accelerando la creazione del prototipo.
+## 🚀 Perché questa struttura è migliore?
+1.  **Separazione delle Responsabilità**: Il `WaveManager` non deve sapere *come* attacca un nemico, deve solo sapere *quanti* ne sono rimasti.
+2.  **Targeting Chiaro**: I nemici hanno una relazione diretta con il Player (`Enemy ..> Player`), rendendo la logica di inseguimento semplice da scrivere.
+3.  **Collaborazione**: Uno sviluppatore può lavorare sulla difficoltà delle ondate (`WaveManager`) mentre un altro lavora sui tipi di mostri (`Enemy`) senza sovrapporsi.
