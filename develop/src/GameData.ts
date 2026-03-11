@@ -20,14 +20,18 @@ export let GameData: gameData = {
   },
 
   spritesheets: [
-
     { name: "player", path: "assets/images/player.png", width: 82, height: 70, frames: 50 },
 
   ],
 
-  images: [
+  tilemaps: [
+    {key: "tilemap", path: "assets/tilemaps/catacombe.json"},
+  ],
 
+  images: [
     { name: "silent_production_logo", path: "assets/images/logos/logo_silent_production_scontornato.png" },
+    { name: "tileset_0", path: "assets/tilemaps/mainlevbuild.png" },
+    { name: "tileset_1", path: "assets/tilemaps/decorative.png" },
   ],
 
   atlas: [],
@@ -47,6 +51,7 @@ export let GameData: gameData = {
     // { name: "video", path: "/assets/video/video.mp4" },
 
   ],
+
   audios: [
 
     /*{
@@ -61,11 +66,13 @@ export let GameData: gameData = {
     // { name: "script", path: "assets/scripts/script.js" },
   ],
 
-  fonts: [{
-      key:"ralewayRegular", 
-      path:"assets/fonts/raleway.regular.ttf",
-      type:"truetype"
-    }],
+  fonts: [
+    // {
+    //   key:"ralewayRegular", 
+    //   path:"assets/fonts/raleway.regular.ttf",
+    //   type:"truetype"
+    // }
+  ],
 
   webfonts: [
     { key: 'Nosifer' }, 
