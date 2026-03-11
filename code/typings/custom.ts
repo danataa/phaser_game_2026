@@ -15,7 +15,7 @@ interface gameData {
     loadingText: string,
     loadingTextFont: string,
     loadingTextComplete: string,
-    loadingTextY: number,
+    loadingTextY: number
     loadingBarColor: number,
     loadingBarY: number
   },
@@ -67,6 +67,8 @@ interface FontAsset {
   type?: string;
 }
 
+
+
 interface SpritesheetsAsset {
   name: string;
   path: string;
@@ -79,9 +81,6 @@ interface SpritesheetsAsset {
 interface SoundAsset {
   name: string;
   paths: Array<string>;
-  volume?: number;
-  loop?: boolean;
-  [key: string]: any;
 }
 
 interface AudioSpriteAsset {

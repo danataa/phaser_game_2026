@@ -1,5 +1,6 @@
 //importiamo la libreria phaser
 import "phaser";
+
 //importiamo le nostre scene
 import Boot from "./scenes/Boot";
 import Hud from "./scenes/Hud";
@@ -7,6 +8,7 @@ import Preloader from "./scenes/Preloader";
 import GamePlay from "./scenes/GamePlay";
 import GameOver from "./scenes/GameOver";
 import Menu from "./scenes/Menu";
+
 //importiamo GameData che contiene i valori globali del gioco
 import { GameData } from "./GameData";
 
@@ -15,7 +17,6 @@ import { GameData } from "./GameData";
 //e tutti gli elementi della pagina sono disponibili
 window.addEventListener("load", () => {
 
-  /** Builds the Phaser game config and boots the game. */
 
   //creiamo un oggetto di configurazione per il gioco
   //questo oggetto viene passato al costruttore di Phaser.Game
@@ -27,7 +28,6 @@ window.addEventListener("load", () => {
     parent: "my-game",
     scale: {
       mode: Phaser.Scale.FIT,
-      autoCenter: Phaser.Scale.CENTER_BOTH,
       width: GameData.globals.gameWidth,
       height: GameData.globals.gameHeight,
     },
@@ -40,6 +40,7 @@ window.addEventListener("load", () => {
       GamePlay,
       GameOver
     ],
+
     physics: {
       default: "arcade",
       arcade: { debug: GameData.globals.debug, }
@@ -49,6 +50,7 @@ window.addEventListener("load", () => {
       activePointers: 2,
       keyboard: true,
     },
+
     render: {
       pixelArt: false,
       antialias: true,
