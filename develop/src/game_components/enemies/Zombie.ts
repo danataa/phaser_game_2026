@@ -1,4 +1,5 @@
 import Enemy from "../Enemy";
+import Player from "../Player";
 
 // Nemico di tipo zombie 
 export default class Zombie extends Enemy {
@@ -6,13 +7,14 @@ export default class Zombie extends Enemy {
     private _isAttacking: boolean = false;
     private _attackDelay: number = 800;
 
-    constructor(scene: Phaser.Scene, x: number, y: number) {
-        super(scene, x, y, "zombie_idle");
+    constructor(scene: Phaser.Scene, x: number, y: number, target: Player) {
+        super(scene, x, y, "zombie_idle", target);
 
         // Valori specifici dello zombie: danno, velocità e HP
         this.setDamage(20);
         this.setSpeed(380);
         this.setHp(50);
+        this._soulsValue = 10;
 
         // Crea le animazioni 
         this._createAnimations();
@@ -43,7 +45,19 @@ export default class Zombie extends Enemy {
                 frameRate: 5,
                 repeat: 0,
             });
-        }
+
+            this.anims.create({
+                key: "zombie_dead",
+                frames: this.anims.generateFrameNumbers("zombie_dead", { start: 0, end: 4 }),
+                frameRate: 8,
+                repeat: 0,
+            });
+    }
+
+    // Avvia l'animazione di morte dello zombie
+    protected startDeath(): void {
+        this.anims.play('zombie_dead', true);
+    }
 
     // Gestisce l'attacco: infligge danno una volta per ciclo con delay tra un attacco e l'altro
     private _handleAttack(): void {
@@ -71,6 +85,7 @@ export default class Zombie extends Enemy {
 
     // Override del metodo update per gestire le animazioni specifiche dello zombie
     update() {
+        if (this._isDead) return;
         super.update();
         
         if(this.target && Phaser.Math.Distance.Between(this.x, this.y, this.target.x, this.target.y) < 50) {

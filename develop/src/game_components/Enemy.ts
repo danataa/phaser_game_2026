@@ -9,13 +9,15 @@ import * as EasyStar from "easystarjs";
 export default class Enemy extends Actor {
     protected damage: number;
     protected target: Player | null;
+    protected _isDead: boolean = false;
+    protected _soulsValue: number;
     private _easystar: EasyStar.js;
-    private _mapManager: MapManager | null;
+    protected _mapManager: MapManager | null;
     private _path: { x: number; y: number }[];
     private _currentPathIndex: number;
     private _pathTimer: number;
     
-    constructor(scene: Phaser.Scene, x: number, y: number, texture: string) {
+    constructor(scene: Phaser.Scene, x: number, y: number, texture: string, target: Player) {
         super(scene, x, y, texture);
         this.target = null;
         this._mapManager = null;
@@ -23,14 +25,17 @@ export default class Enemy extends Actor {
         this._path = [];
         this._currentPathIndex = 0;
         this._pathTimer = 0;
+        this.target = target;
+
+        // Listener per distruggere il nemico al termine dell'animazione di morte
+        this.on(Phaser.Animations.Events.ANIMATION_COMPLETE, (anim: Phaser.Animations.Animation) => {
+            if (anim.key.includes('dead')) {
+                this.destroy();
+            }
+        });
     }
 
     // --- Metodi generici ---
-
-    // Imposta il player come bersaglio da inseguire
-    setTarget(player: Player) {
-        this.target = player;
-    }
 
     // Imposta il danno che questo nemico infligge al player
     setDamage(value: number) {
@@ -50,8 +55,27 @@ export default class Enemy extends Actor {
         }
     }
 
+    // Override di takeDamage per gestire la morte del nemico
+    takeDamage(amount: number) {
+        super.takeDamage(amount);
+        
+        if (this.getHp <= 0 && !this._isDead) {
+            this._isDead = true;
+            this.setVelocity(0, 0);
+            this.body.enable = false;
+            this.scene.events.emit('update-score', this._soulsValue);
+            this.startDeath();
+        }
+    }
+
+    // Metodo da implementare nelle sottoclassi per avviare l'animazione di morte
+    protected startDeath(): void {
+        // Override nelle sottoclassi
+    }
+
     // Ad ogni frame, muoviti verso il player seguendo il percorso
     update() {
+        if (this._isDead) return;
         this.moveToPlayer();
     }
 

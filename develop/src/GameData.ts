@@ -28,8 +28,20 @@ export let GameData: gameData = {
     { name: "zombie_idle", path: "assets/spritesheets/zombie/Idle.png", width: 128, height: 128, frames: 6 },
     { name: "zombie_walk", path: "assets/spritesheets/zombie/Walk.png", width: 128, height: 128, frames: 10 },
     { name: "zombie_attack", path: "assets/spritesheets/zombie/Attack.png", width: 128, height: 128, frames: 4 },
-    { name: "zombie_hurt", path: "assets/spritesheets/zombie/Hurt.png", width: 128, height: 128, frames: 4 },
     { name: "zombie_dead", path: "assets/spritesheets/zombie/Dead.png", width: 128, height: 128, frames: 5 },
+    
+    { name: "demon_idle", path: "assets/spritesheets/demon/Idle.png", width: 128, height: 128, frames: 8 },
+    { name: "demon_walk", path: "assets/spritesheets/demon/Walk.png", width: 128, height: 128, frames: 8 },
+    { name: "demon_attack", path: "assets/spritesheets/demon/Attack_3.png", width: 128, height: 128, frames: 7 },
+    { name: "demon_dead", path: "assets/spritesheets/demon/Dead.png", width: 128, height: 128, frames: 10 },
+    { name: "demon_bullet", path: "assets/spritesheets/demon/Fire_1.png", width: 64, height: 64, frames: 14 },
+    
+
+    { name: "skeleton_idle", path: "assets/spritesheets/skeleton/Idle.png", width: 128, height: 128, frames: 7 },
+    { name: "skeleton_walk", path: "assets/spritesheets/skeleton/Walk.png", width: 128, height: 128, frames: 7 },
+    { name: "skeleton_attack", path: "assets/spritesheets/skeleton/Attack_2.png", width: 128, height: 128, frames: 4 },
+    { name: "skeleton_dead", path: "assets/spritesheets/skeleton/Dead.png", width: 128, height: 128, frames: 4 },
+
 
   ],
 
