@@ -51,6 +51,7 @@ export let GameData: gameData = {
   ],
 
   images: [
+    { name: "game_logo", path: "assets/images/logos/game_logo.png" },
     { name: "silent_production_logo", path: "assets/images/logos/logo_silent_production_scontornato.png" },
     { name: "tileset_0", path: "assets/tilemaps/mainlevbuild.png" },
     { name: "tileset_1", path: "assets/tilemaps/decorative.png" },

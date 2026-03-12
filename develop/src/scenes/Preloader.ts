@@ -5,7 +5,7 @@ import WebFontFile from '../scenes/webFontFile';
 export default class Preloader extends Phaser.Scene {
   private _loadingCircle: Phaser.GameObjects.Graphics;
   private _image: Phaser.GameObjects.Image;
-
+  
   constructor() {
     super({ key: "Preloader" });
   }
