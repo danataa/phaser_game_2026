@@ -41,6 +41,7 @@ export let GameData: gameData = {
     { name: "skeleton_walk", path: "assets/spritesheets/skeleton/Walk.png", width: 128, height: 128, frames: 7 },
     { name: "skeleton_attack", path: "assets/spritesheets/skeleton/Attack_2.png", width: 128, height: 128, frames: 4 },
     { name: "skeleton_dead", path: "assets/spritesheets/skeleton/Dead.png", width: 128, height: 128, frames: 4 },
+    { name: "skeleton_dash", path: "assets/spritesheets/skeleton/Run.png", width: 128, height: 128, frames: 8 },
 
 
   ],

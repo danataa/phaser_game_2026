@@ -1,14 +1,13 @@
 import Player from "../game_components/Player";
 import MapManager from "../game_components/MapManager";
 import Zombie from "../game_components/enemies/Zombie";
-import Demon from "../game_components/enemies/Demon";
 
 // Scena principale di gioco: crea la mappa e il player
 export default class GamePlay extends Phaser.Scene {
 
   private _player: Player;
   private _zombie: Zombie
-  private _demon: Demon;
+
   private _mapManager: MapManager;
 
   constructor() {
@@ -26,32 +25,20 @@ export default class GamePlay extends Phaser.Scene {
     this._mapManager.addCollider(this._player);
     this._mapManager.setupCamera(this._player);
 
-    // Posiziona lo zombie in un punto specifico della mappa
-    this._zombie = new Zombie(
-      this, 
-      this._mapManager.widthInPixels / 2 , 
-      this._mapManager.heightInPixels / 2 - 100,
-      this._player,
-    );
-    this._zombie.setMapManager(this._mapManager);
-    this._mapManager.addCollider(this._zombie);
+    /* Esempio di creazione nemici */
 
-    // Posiziona il demon in un punto specifico della mappa
-    this._demon = new Demon(
-      this, 
-      this._mapManager.widthInPixels / 2 + 100, 
-      this._mapManager.heightInPixels / 2 - 100,
-      this._player,
-    );
-    this._demon.setMapManager(this._mapManager);
-    this._mapManager.addCollider(this._demon);
+    // this._zombie = new Zombie(
+    //   this,                                                  <-- scena corrente
+    //   this._mapManager.widthInPixels / 2 ,                   <-- posizione X (centro mappa)
+    //   this._mapManager.heightInPixels / 2,                   <-- posizione Y (centro mappa)
+    //   this._player,                                          <-- target (player)
+    // );
+    // this._zombie.setMapManager(this._mapManager);            <-- assegna il map manager al nemico per pathfinding (pathfinding = AI di movimento)
+    // this._mapManager.addCollider(this._zombie);              <-- aggiunge il nemico al sistema di collisioni della mappa
   }
 
   update(_time: number, _delta: number): void {
     this._player?.update();
     this._zombie.update();
-    this._demon.update();
-
-    console.log(`Player HP: ${this._player.getHp} | Zombie HP: ${this._zombie.getHp}`); 
   }
 }
