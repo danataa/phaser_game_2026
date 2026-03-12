@@ -7,7 +7,7 @@ import * as EasyStar from "easystarjs";
 
 // Classe base per tutti i nemici, insegue il player
 export default class Enemy extends Actor {
-    private damage: number;
+    protected damage: number;
     protected target: Player | null;
     private _easystar: EasyStar.js;
     private _mapManager: MapManager | null;
@@ -25,6 +25,8 @@ export default class Enemy extends Actor {
         this._pathTimer = 0;
     }
 
+    // --- Metodi generici ---
+
     // Imposta il player come bersaglio da inseguire
     setTarget(player: Player) {
         this.target = player;
@@ -39,6 +41,67 @@ export default class Enemy extends Actor {
     setMapManager(mapManager: MapManager) {
         this._mapManager = mapManager;
         this._initPathfinding();
+    }
+
+    // Riduce gli HP del player bersaglio
+    attack() {
+        if (this.target) {
+            this.target.takeDamage(this.damage);
+        }
+    }
+
+    // Ad ogni frame, muoviti verso il player seguendo il percorso
+    update() {
+        this.moveToPlayer();
+    }
+
+
+
+
+    // --- Pathfinding ---
+
+    // Calcola il percorso verso il player ogni 1500ms e segue i waypoint
+    moveToPlayer() {
+        if (!this.target || !this._mapManager) return;
+
+        const now = this.scene.time.now;
+
+        // Ricalcola il percorso ogni 1500ms
+        if (now - this._pathTimer >= 1500) {
+            this._pathTimer = now;
+
+            const start = this._worldToTile(this.x, this.y);
+            const end = this._worldToTile(this.target.x, this.target.y);
+
+            this._easystar.findPath(start.x, start.y, end.x, end.y, (path) => {
+                if (path && path.length > 1) {
+                    // Salta il primo punto (posizione corrente)
+                    this._path = path.slice(1);
+                    this._currentPathIndex = 0;
+                }
+            });
+            this._easystar.calculate();
+        }
+
+        // Segue il percorso calcolato
+        if (this._path.length > 0 && this._currentPathIndex < this._path.length) {
+            const waypoint = this._path[this._currentPathIndex];
+            const worldPos = this._tileToWorld(waypoint.x, waypoint.y);
+
+            const dx = worldPos.x - this.x;
+            const dy = worldPos.y - this.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < 5) {
+                this._currentPathIndex++;
+            } else {
+                const direction = new Phaser.Math.Vector2(dx, dy).normalize();
+                this.move(direction);
+            }
+        } else {
+            // Nessun percorso disponibile, fermati
+            this.move(new Phaser.Math.Vector2(0, 0));
+        }
     }
 
     // Costruisce la griglia per EasyStar dai layer con collisioni
@@ -86,60 +149,4 @@ export default class Enemy extends Actor {
             y: tileY * map.tileHeight * scale + (map.tileHeight * scale) / 2
         };
     }
-
-    // Calcola il percorso verso il player ogni 1500ms e segue i waypoint
-    moveToPlayer() {
-        if (!this.target || !this._mapManager) return;
-
-        const now = this.scene.time.now;
-
-        // Ricalcola il percorso ogni 1500ms
-        if (now - this._pathTimer >= 1500) {
-            this._pathTimer = now;
-
-            const start = this._worldToTile(this.x, this.y);
-            const end = this._worldToTile(this.target.x, this.target.y);
-
-            this._easystar.findPath(start.x, start.y, end.x, end.y, (path) => {
-                if (path && path.length > 1) {
-                    // Salta il primo punto (posizione corrente)
-                    this._path = path.slice(1);
-                    this._currentPathIndex = 0;
-                }
-            });
-            this._easystar.calculate();
-        }
-
-        // Segue il percorso calcolato
-        if (this._path.length > 0 && this._currentPathIndex < this._path.length) {
-            const waypoint = this._path[this._currentPathIndex];
-            const worldPos = this._tileToWorld(waypoint.x, waypoint.y);
-
-            const dx = worldPos.x - this.x;
-            const dy = worldPos.y - this.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-
-            if (distance < 5) {
-                this._currentPathIndex++;
-            } else {
-                const direction = new Phaser.Math.Vector2(dx, dy).normalize();
-                this.move(direction);
-            }
-        } else {
-            // Nessun percorso disponibile, fermati
-            this.move(new Phaser.Math.Vector2(0, 0));
-        }
-    }
-
-    // Riduce gli HP del player bersaglio
-    attack() {
-        if (this.target) {
-            this.target.takeDamage(this.damage);
-        }
-    }   
-
-    // Ad ogni frame, muoviti verso il player seguendo il percorso
-    update() {
-        this.moveToPlayer();
-    }  
 }

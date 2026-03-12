@@ -21,6 +21,10 @@ export default class Actor extends Phaser.Physics.Arcade.Sprite {
     setHp(value: number) {
         this.hp = value;
     }
+
+    get getHp(): number {
+        return this.hp;
+    }
     
     // Muove l'attore nella direzione data, scalata per la velocità
     move(direction: Phaser.Math.Vector2) {

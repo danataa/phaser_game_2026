@@ -35,5 +35,7 @@ export default class GamePlay extends Phaser.Scene {
   update(_time: number, _delta: number): void {
     this._player?.update();
     this._zombie.update();
+
+    console.log(`Player HP: ${this._player.getHp} | Zombie HP: ${this._zombie.getHp}`); 
   }
 }

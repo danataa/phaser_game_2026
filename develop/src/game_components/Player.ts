@@ -14,6 +14,7 @@ export default class Player extends Actor {
         super(scene, x, y, "player_idle");
         this._createAnimations();
         this.setSpeed(500);
+        this.setHp(100);
 
         // Registra i tasti WASD per il movimento
         const kb = scene.input.keyboard!;
@@ -24,7 +25,8 @@ export default class Player extends Actor {
             D: kb.addKey(Phaser.Input.Keyboard.KeyCodes.D),
         };
 
-        this.anims.play("idle", true);
+        // this.anims.play("idle", true);
+
         // Hitbox più piccola dello sprite per collisioni più precise
         this.setSize(32, 64);
         this.setOffset(16, 64);
