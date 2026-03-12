@@ -132,7 +132,7 @@ export default class Merchant extends Actor {
   // ================================
   // APRI SHOP
   // ================================
-  private apriShop(): void {
+  public apriShop(): void {
     this._shopAperto = true;
     this._prompt.setVisible(false);
     console.log("🛒 Shop aperto!");

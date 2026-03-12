@@ -1,8 +1,9 @@
+import Phaser from "phaser";
 import Player from "../game_components/Player";
 import MapManager from "../game_components/MapManager";
 import Merchant from "../game_components/Merchant";
+import WaveManager from "../game_components/WaveManager";
 
-// Scena principale di gioco: crea la mappa, il player e il merchant
 export default class GamePlay extends Phaser.Scene {
 
   // ================================
@@ -11,6 +12,7 @@ export default class GamePlay extends Phaser.Scene {
   private _player!: Player;
   private _mapManager!: MapManager;
   private _merchant!: Merchant;
+  private _waveManager!: WaveManager;
 
   constructor() {
     super({ key: "GamePlay" });
@@ -27,7 +29,6 @@ export default class GamePlay extends Phaser.Scene {
   create() {
     this._mapManager = new MapManager(this);
 
-    // Posiziona il player al centro della mappa
     this._player = new Player(
       this,
       this._mapManager.widthInPixels / 2,
@@ -35,26 +36,77 @@ export default class GamePlay extends Phaser.Scene {
     );
     this._player.setScale(2);
 
-    // 🖼️ TODO: posizionare il merchant in un punto fisso della mappa
     this._merchant = new Merchant(
       this,
       this._mapManager.widthInPixels / 2,
       this._mapManager.heightInPixels / 2 - 100
     );
 
-    // Collisione tra player e merchant
+    this._waveManager = new WaveManager(
+      this,
+      this._player,
+      this._mapManager.widthInPixels,
+      this._mapManager.heightInPixels
+    );
+
+    // Collisioni
     this.physics.add.collider(this._player, this._merchant);
+    // Overlap (non sposta) per player-nemici — combattimento senza knockback
+    this.physics.add.overlap(this._player, this._waveManager.nemici);
 
     this._mapManager.addCollider(this._player);
+
+    // Zombie collidono con i muri
+    this._mapManager.collidableLayers.forEach(layer => {
+      this.physics.add.collider(this._waveManager.nemici, layer);
+    });
+
     this._mapManager.setupCamera(this._player);
 
-    // ✅ Quando GamePlay riprende dopo la pausa dello shop
-    // riattiviamo la fisica manualmente
+    // ================================
+    // ATTACCO PLAYER
+    // ================================
+    this.events.on("player-attacca", (data: any) => {
+      this._waveManager.nemici.getChildren().forEach((enemy) => {
+        const zombie = enemy as any;
+        const distanza = Phaser.Math.Distance.Between(
+          zombie.x, zombie.y,
+          data.x, data.y
+        );
+
+        if (distanza <= data.raggio) {
+          zombie.takeDamage(data.danno);
+          console.log(`💥 Nemico colpito a ${Math.round(distanza)}px di distanza!`);
+        }
+      });
+    });
+
+    // ================================
+    // ANIME RACCOLTE
+    // ================================
+    this.events.on("anima-spawned", (data: any) => {
+      this._player.raccogliAnime(data.anime);
+    });
+
+    // Riprendi fisica dopo pausa shop
     this.events.on("resume", () => {
       this.physics.resume();
       console.log("▶️ GamePlay ripreso");
     });
-    this.scene.launch("Hud"); // ✅ lancia HUD in overlay
+
+    // Ondata completata → apri shop dopo 3 secondi
+    this.events.on("ondata-completata", () => {
+      this.time.delayedCall(3000, () => {
+        this._merchant.apriShop();
+      });
+    });
+
+    // Avvia prima ondata dopo 2 secondi
+    this.time.delayedCall(2000, () => {
+      this._waveManager.avviaOndata();
+    });
+
+    this.scene.launch("Hud");
   }
 
   // ================================
@@ -62,8 +114,7 @@ export default class GamePlay extends Phaser.Scene {
   // ================================
   update(_time: number, _delta: number): void {
     this._player?.update();
-
-    // Passiamo la posizione del player al merchant ogni frame
     this._merchant?.update(this._player.x, this._player.y);
+    this._waveManager?.update(_time);
   }
 }
