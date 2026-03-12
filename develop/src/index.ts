@@ -26,10 +26,10 @@ window.addEventListener("load", () => {
 
     scene: [
       Boot,
-      Hud,
       Preloader,
       Menu,
       GamePlay,
+      Hud,
       ShopUI,
       GameOver,
     ],
