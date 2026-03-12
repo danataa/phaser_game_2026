@@ -1,6 +1,7 @@
 import { GameData } from "../GameData";
 import WebFontFile from '../scenes/webFontFile';
 
+// Carica tutti gli asset e mostra un'animazione di caricamento
 export default class Preloader extends Phaser.Scene {
   private _loadingCircle: Phaser.GameObjects.Graphics;
   private _image: Phaser.GameObjects.Image;
@@ -13,6 +14,7 @@ export default class Preloader extends Phaser.Scene {
     this.cameras.main.setBackgroundColor(GameData.globals.bgColor);
     this.loadAssets();
 
+    // Cerchio di caricamento animato al centro-basso dello schermo
     this._loadingCircle = this.add.graphics();
     const centerX = this.game.canvas.width / 2;
     const centerY = this.game.canvas.height / 2 + 300;
@@ -41,6 +43,7 @@ export default class Preloader extends Phaser.Scene {
     });
   }
 
+  // Disegna un arco di 3/4 di cerchio (spinner)
   private drawLoadingCircle() {
     const radius = 40;
     const thickness = 8;
@@ -52,22 +55,21 @@ export default class Preloader extends Phaser.Scene {
     this._loadingCircle.strokePath();
   }
 
+  // Carica tutti gli asset definiti in GameData e gestisce le transizioni
   loadAssets(): void {
     this.load.on("start", () => {});
     this.load.on("fileprogress", () => {});
-    this.load.on("progress", () => {
-      // il cerchio ruota automaticamente
-    });
+    this.load.on("progress", () => {});
 
     this.load.on("complete", () => {
-      // cerchio in dissolvenza senza interrompere la rotazione
+      // Nasconde lo spinner
       this.tweens.add({
         targets: this._loadingCircle,
         alpha: 0,
         duration: 1000,
       });
 
-      // piccolo ritardo prima del fade-in dell'immagine
+      // Mostra il logo dopo 2s
       this.time.delayedCall(2000, () => {
         this.tweens.add({
           targets: this._image,
@@ -76,7 +78,7 @@ export default class Preloader extends Phaser.Scene {
         });
       });
 
-      // dopo 5s scompare tutto e si passa alla scena Menu
+      // Dopo 5s sfuma tutto e avvia GamePlay
       this.time.delayedCall(5000, () => {
         this.tweens.add({
           targets: [this._image, this._loadingCircle],
@@ -84,15 +86,14 @@ export default class Preloader extends Phaser.Scene {
           duration: 1000,
           onComplete: () => {
             this.scene.stop("Preloader");
-            this.scene.start("Menu");
+            this.scene.start("GamePlay");
           },
         });
       });
     });
 
 
-    //Assets Load
-    //--------------------------
+    // --- Caricamento asset per tipo ---
 
     // WEB FONT
     if (GameData.webfonts != null) {

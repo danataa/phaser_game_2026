@@ -1,6 +1,7 @@
 import Actor from "./Actor";
 import Player from "./Player";
 
+// Classe base per tutti i nemici, insegue il player
 export default class Enemy extends Actor {
     private damage: number;
     private target: Player | null;
@@ -11,10 +12,12 @@ export default class Enemy extends Actor {
         this.target = null;
     }
 
+    // Imposta il player come bersaglio da inseguire
     setTarget(player: Player) {
         this.target = player;
     }
 
+    // Calcola la direzione verso il player e si muove
     update() {
         if (this.target) {
             const direction = new Phaser.Math.Vector2(

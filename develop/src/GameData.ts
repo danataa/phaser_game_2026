@@ -1,3 +1,4 @@
+// Configurazione globale: impostazioni di gioco e lista degli asset da caricare
 export let GameData: gameData = {
   globals: {
     gameWidth: 1920,
@@ -20,7 +21,9 @@ export let GameData: gameData = {
   },
 
   spritesheets: [
-    { name: "player", path: "assets/images/player.png", width: 82, height: 70, frames: 50 },
+    { name: "player_idle", path: "assets/spritesheets/knight/Idle.png", width: 128, height: 128, frames: 4 },
+    { name: "player_walk", path: "assets/spritesheets/knight/Walk.png", width: 128, height: 128, frames: 8 },
+    { name: "player_attack", path: "assets/spritesheets/knight/Attack 1.png", width: 128, height: 128, frames: 5 },
 
   ],
 

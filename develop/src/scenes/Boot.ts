@@ -1,10 +1,10 @@
 import { GameData } from "../GameData";
 
+// Prima scena caricata: imposta lo sfondo e avvia il Preloader
 export default class Boot extends Phaser.Scene {
 
   constructor() {
     super({ key: "Boot" });
-
   }
 
   init() {
