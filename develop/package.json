@@ -39,7 +39,6 @@
   },
   "license": "MIT",
   "devDependencies": {
-
     "@types/webfontloader": "^1.6.38",
     "@yandeu/prettier-config": "^0.0.4",
     "copy-webpack-plugin": "^13.0.1",
@@ -67,6 +66,7 @@
     "webpack-obfuscator": "^3.5.1"
   },
   "dependencies": {
+    "easystarjs": "^0.4.4",
     "phaser": "^3.90.0"
   }
 }

@@ -31,6 +31,10 @@ export default class MapManager {
     return this._map;
   }
 
+  get scale(): number {
+    return this._scale;
+  }
+
   // Dimensioni della mappa in pixel (scalate)
   get widthInPixels(): number {
     return this._map.widthInPixels * this._scale;

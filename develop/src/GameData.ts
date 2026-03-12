@@ -25,6 +25,12 @@ export let GameData: gameData = {
     { name: "player_walk", path: "assets/spritesheets/knight/Walk.png", width: 128, height: 128, frames: 8 },
     { name: "player_attack", path: "assets/spritesheets/knight/Attack 1.png", width: 128, height: 128, frames: 5 },
 
+    { name: "zombie_idle", path: "assets/spritesheets/zombie/Idle.png", width: 128, height: 128, frames: 6 },
+    { name: "zombie_walk", path: "assets/spritesheets/zombie/Walk.png", width: 128, height: 128, frames: 10 },
+    { name: "zombie_attack", path: "assets/spritesheets/zombie/Attack.png", width: 128, height: 128, frames: 4 },
+    { name: "zombie_hurt", path: "assets/spritesheets/zombie/Hurt.png", width: 128, height: 128, frames: 4 },
+    { name: "zombie_dead", path: "assets/spritesheets/zombie/Dead.png", width: 128, height: 128, frames: 5 },
+
   ],
 
   tilemaps: [
