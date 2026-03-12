@@ -11,7 +11,15 @@ export default class Actor extends Phaser.Physics.Arcade.Sprite {
         scene.add.existing(this);
         scene.physics.add.existing(this);
         this.hp = 100;
-        this.speed = 400;
+        this.speed = 100;
+    }
+
+    setSpeed(value: number) {
+        this.speed = value;
+    }
+    
+    setHp(value: number) {
+        this.hp = value;
     }
     
     // Muove l'attore nella direzione data, scalata per la velocità

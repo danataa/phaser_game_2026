@@ -13,6 +13,7 @@ export default class Player extends Actor {
     constructor(scene: Phaser.Scene, x: number, y: number) {
         super(scene, x, y, "player_idle");
         this._createAnimations();
+        this.setSpeed(500);
 
         // Registra i tasti WASD per il movimento
         const kb = scene.input.keyboard!;
