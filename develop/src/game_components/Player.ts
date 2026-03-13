@@ -44,7 +44,7 @@ export default class Player extends Actor {
 
         // Hitbox più piccola dello sprite per collisioni più precise
         this.setSize(32, 64);
-        this.setOffset(16, 64);
+        this.setOffset(32, 64);
         this.setOrigin(0, 0.5);
     }
 
@@ -139,15 +139,19 @@ export default class Player extends Actor {
     // Esegue un attacco melee con hitbox rettangolare davanti al player
     private executeMelee(): void {
         type SensorBody = Phaser.Physics.Arcade.Body & { isSensor?: boolean };
-        const meleeWidth = 64;
-        const meleeHeight = 44;
-        const meleeOffsetX = this.flipX ? -48 : 48;
+        const playerBody = this.body as Phaser.Physics.Arcade.Body;
+        const meleeWidth = playerBody.width;
+        const meleeHeight = playerBody.height;
+        const offsetX = this.flipX ? -playerBody.width : playerBody.width;
+        const hitboxX = playerBody.center.x + offsetX;
+        const hitboxY = playerBody.center.y;
 
         this._isAttacking = true;
         this.setVelocity(0, 0);
         this.anims.play("attack_mele", true);
 
-        const hitbox = this.scene.add.rectangle(this.x + meleeOffsetX, this.y, meleeWidth, meleeHeight, 0xffffff, 0);
+        const hitbox = this.scene.add.rectangle(hitboxX, hitboxY, meleeWidth, meleeHeight, 0xffffff, 0);
+        hitbox.setStrokeStyle(2, 0xff0000);
         this.scene.physics.add.existing(hitbox);
 
         const hitboxBody = hitbox.body as SensorBody;
@@ -167,14 +171,10 @@ export default class Player extends Actor {
             this._applyHitFeedback(hitEnemies);
         }
 
-        this.scene.tweens.add({
-            targets: hitbox,
-            scaleX: 0,
-            scaleY: 0,
-            duration: 100,
-            onComplete: () => {
+        this.scene.time.delayedCall(100, () => {
+            if (hitbox.active) {
                 hitbox.destroy();
-            },
+            }
         });
 
         this.once(Phaser.Animations.Events.ANIMATION_COMPLETE_KEY + "attack_mele", () => {
