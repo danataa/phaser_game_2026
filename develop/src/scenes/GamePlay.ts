@@ -49,6 +49,9 @@ export default class GamePlay extends Phaser.Scene {
   update(_time: number, _delta: number): void {
     this._player?.update();
     // this._zombie.update();                                   <-- aggiorna il comportamento del nemico (inseguimento, attacco, ecc.)
+  
+    console.log("Souls: " + this._player.getPlayerSouls);
+
   }
 
   private _onWaveComplete(completedWave: number): void {

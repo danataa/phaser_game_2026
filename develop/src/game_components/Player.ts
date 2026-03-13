@@ -16,6 +16,7 @@ export default class Player extends Actor {
     private readonly _meleeDamage: number = 25;
     private readonly _smashCooldownMs: number = 2000;
     private _canUseSmash: boolean = true;
+    private playerSouls: number = 0;
 
     constructor(scene: Phaser.Scene, x: number, y: number) {
         super(scene, x, y, "player_idle");
@@ -34,12 +35,21 @@ export default class Player extends Actor {
         };
         this._keyE = kb.addKey(Phaser.Input.Keyboard.KeyCodes.E);
 
+        this.scene.events.on("update-score", this._onUpdateScore, this);
+        this.once(Phaser.GameObjects.Events.DESTROY, () => {
+            this.scene.events.off("update-score", this._onUpdateScore, this);
+        });
+
         // this.anims.play("idle", true);
 
         // Hitbox più piccola dello sprite per collisioni più precise
         this.setSize(32, 64);
         this.setOffset(16, 64);
         this.setOrigin(0, 0.5);
+    }
+
+    public get getPlayerSouls(): number {
+        return this.playerSouls;
     }
 
     // Crea le animazioni idle, walk e attack dallo spritesheet
@@ -240,6 +250,10 @@ export default class Player extends Actor {
         return this.scene.children.list.filter((gameObject): gameObject is Enemy => {
             return gameObject instanceof Enemy && gameObject.active;
         });
+    }
+
+    private _onUpdateScore(souls: number): void {
+        this.playerSouls += souls;
     }
 
     private _applyHitFeedback(enemies: Enemy[]): void {
