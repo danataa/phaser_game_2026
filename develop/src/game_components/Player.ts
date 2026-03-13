@@ -9,6 +9,9 @@ export default class Player extends Actor {
         S: Phaser.Input.Keyboard.Key;
         D: Phaser.Input.Keyboard.Key;
     };
+    private _anime: number = 0;
+    private _hpMax: number = 100;
+    private _atk: number = 10;
 
     constructor(scene: Phaser.Scene, x: number, y: number) {
         super(scene, x, y, "player_idle");
@@ -96,6 +99,52 @@ export default class Player extends Actor {
         this.move(direction);
     }
 
-    
+    // ============================
+    // ANIME & UPGRADE SYSTEM
+    // ============================
+    public get anime(): number {
+        return this._anime;
+    }
+
+    public raccogliAnime(amount: number): void {
+        this._anime += amount;
+        this.scene.events.emit("anime-cambiate", this._anime);
+    }
+
+    public spendi(amount: number): void {
+        this._anime -= amount;
+        this.scene.events.emit("anime-cambiate", this._anime);
+    }
+
+    public getAnime(): number {
+        return this._anime;
+    }
+
+    public aumentaHp(amount: number): void {
+        this._hpMax += amount;
+        this.setHp(this.getHp + amount);
+        this.scene.events.emit("vita-cambiata", this.getHp, this._hpMax);
+    }
+
+    public aumentaAtk(amount: number): void {
+        this._atk = Math.floor(this._atk * (1 + amount / 100));
+        this.scene.events.emit("danno-cambiato", this._atk);
+    }
+
+    public aumentaVelocita(amount: number): void {
+        this.setSpeed(this.getSpeed + amount);
+    }
+
+    public getHpMax(): number {
+        return this._hpMax;
+    }
+
+    public getAtk(): number {
+        return this._atk;
+    }
+
+    public get getSpeed(): number {
+        return (this as any).speed;
+    }
 }
 

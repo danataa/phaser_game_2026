@@ -1,12 +1,14 @@
 import Player from "../game_components/Player";
 import MapManager from "../game_components/MapManager";
 import Zombie from "../game_components/enemies/Zombie";
+import Merchant from "../game_components/Merchant";
 
 // Scena principale di gioco: crea la mappa e il player
 export default class GamePlay extends Phaser.Scene {
 
-  private _player: Player;
+  public _player: Player;
   private _zombie: Zombie
+  public _merchant: Merchant;
 
   private _mapManager: MapManager;
 
@@ -25,6 +27,14 @@ export default class GamePlay extends Phaser.Scene {
     this._mapManager.addCollider(this._player);
     this._mapManager.setupCamera(this._player);
 
+    // Crea il mercante al centro della mappa
+    this._merchant = new Merchant(
+      this,
+      this._mapManager.widthInPixels / 2,
+      this._mapManager.heightInPixels / 2
+    );
+    this._mapManager.addCollider(this._merchant);
+
     /* Esempio di creazione nemici */
 
     // this._zombie = new Zombie(
@@ -39,6 +49,7 @@ export default class GamePlay extends Phaser.Scene {
 
   update(_time: number, _delta: number): void {
     this._player?.update();
+    this._merchant?.update(this._player.x, this._player.y);
     // this._zombie.update();                                   <-- aggiorna il comportamento del nemico (inseguimento, attacco, ecc.)
   }
 }
