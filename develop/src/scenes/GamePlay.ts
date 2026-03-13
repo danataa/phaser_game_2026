@@ -1,6 +1,8 @@
 import Player from "../game_components/Player";
 import MapManager from "../game_components/MapManager";
 import WaveManager from "../game_components/WaveManager";
+import PerkAOE from "../game_components/perks/PerkAOE";
+import PerkDash from "../game_components/perks/PerkDash";
 
 // Scena principale di gioco: crea la mappa e il player
 export default class GamePlay extends Phaser.Scene {
@@ -24,6 +26,8 @@ export default class GamePlay extends Phaser.Scene {
     // Posiziona il player al centro della mappa
     this._player = new Player(this, this._mapManager.widthInPixels / 2, this._mapManager.heightInPixels / 2);
     this._player.setScale(2);
+    this._player.setPerkSlotQ(new PerkAOE(this._player, 120, 50, 2000));
+    this._player.setPerkSlotE(new PerkDash(this._player, 1800, 110, 1200));
     this._mapManager.addCollider(this._player);
     this._mapManager.setupCamera(this._player);
 
