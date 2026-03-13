@@ -1,0 +1,11 @@
+{
+  "short_name": "Phaser Game JAM",
+  "name": "Phaser Game JAM",
+
+  "start_url": "/",
+  "background_color": "#000000",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "scope": "/",
+  "theme_color": "#000000"
+}
