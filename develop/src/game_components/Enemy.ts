@@ -31,6 +31,7 @@ export default class Enemy extends Actor {
         this._currentPathIndex = 0;
         this._pathTimer = 0;
         this._target = target;
+        (this.body as Phaser.Physics.Arcade.Body).setCollideWorldBounds(true);
 
         // Listener per distruggere il nemico al termine dell'animazione di morte
         this.on(Phaser.Animations.Events.ANIMATION_COMPLETE, (anim: Phaser.Animations.Animation) => {
@@ -89,6 +90,15 @@ export default class Enemy extends Actor {
     /** Applica danno e gestisce la transizione di morte del nemico. */
     takeDamage(amount: number): void {
         super.takeDamage(amount);
+
+        if (!this._isDead && this.active) {
+            this.setTint(0xff0000);
+            this.scene.time.delayedCall(120, () => {
+                if (this.active && !this._isDead) {
+                    this.clearTint();
+                }
+            });
+        }
 
         if (this.getHp <= 0 && !this._isDead) {
             this._handleDeath();
