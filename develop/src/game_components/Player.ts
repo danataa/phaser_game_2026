@@ -45,6 +45,7 @@ export default class Player extends Actor {
     private _isAttacking: boolean = false;
     private _isDashing: boolean = false;
     private readonly _meleeDamage: number = 25;
+<<<<<<< HEAD
     private readonly _baseSpeed: number = 500;
     private readonly _maxHp: number = 100;
     private readonly _bulletSpeed: number = 900;
@@ -82,6 +83,12 @@ export default class Player extends Actor {
             flashDurationMs: 100,
         },
     };
+=======
+    private readonly _smashCooldownMs: number = 2000;
+    private _canUseSmash: boolean = true;
+    public playerSouls: number = 0;
+    private readonly _onUpdateScore: (souls: number) => void;
+>>>>>>> origin/feature/fix_player_souls
 
     constructor(scene: Phaser.Scene, x: number, y: number) {
         super(scene, x, y, "player_idle");
@@ -100,6 +107,14 @@ export default class Player extends Actor {
             E: kb.addKey(Phaser.Input.Keyboard.KeyCodes.E),
         };
 
+        this._onUpdateScore = (souls: number) => {
+            this.playerSouls += souls;
+        };
+        this.scene.events.on("update-score", this._onUpdateScore);
+        this.once(Phaser.GameObjects.Events.DESTROY, () => {
+            this.scene.events.off("update-score", this._onUpdateScore);
+        });
+
         // this.anims.play("idle", true);
 
         // Hitbox più piccola dello sprite per collisioni più precise
@@ -116,6 +131,10 @@ export default class Player extends Actor {
         this.once(Phaser.GameObjects.Events.DESTROY, () => {
             scene.input.off(Phaser.Input.Events.POINTER_DOWN, this._onPointerDown);
         });
+    }
+
+    public get getPlayerSouls(): number {
+        return this.playerSouls;
     }
 
     // Crea le animazioni idle, walk e attack dallo spritesheet
