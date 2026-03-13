@@ -19,6 +19,10 @@ export default class GamePlay extends Phaser.Scene {
   init() {}
 
   create() {
+    if (this.input.mouse) {
+      this.input.mouse.disableContextMenu();
+    }
+
     this._mapManager = new MapManager(this);
 
     // Posiziona il player al centro della mappa
@@ -33,6 +37,7 @@ export default class GamePlay extends Phaser.Scene {
     this.events.on("wave-complete", this._onWaveComplete, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, this._onShutdown, this);
     this._waveManager.startWave(1);
+    this._player.setCurrentWave(this._waveManager.currentWave);
 
     /* Esempio di creazione nemici */
 
@@ -56,7 +61,9 @@ export default class GamePlay extends Phaser.Scene {
 
   private _onWaveComplete(completedWave: number): void {
     this.time.delayedCall(2000, () => {
-      this._waveManager.startWave(completedWave + 1);
+      const nextWave = completedWave + 1;
+      this._player.setCurrentWave(nextWave);
+      this._waveManager.startWave(nextWave);
     });
   }
 
