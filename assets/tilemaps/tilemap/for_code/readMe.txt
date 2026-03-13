@@ -5,4 +5,3 @@ livello 3: decorations
 
 proprietà:
 collide
-death
