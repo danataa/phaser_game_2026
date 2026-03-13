@@ -8,6 +8,7 @@ export default class MapManager {
   // Tileset
   private _tilesetMain: Phaser.Tilemaps.Tileset;
   private _tilesetDeco: Phaser.Tilemaps.Tileset;
+  private _tilesetTorch: Phaser.Tilemaps.Tileset;
 
   // Layer
   private _floorLayer: Phaser.Tilemaps.TilemapLayer;
@@ -46,7 +47,7 @@ export default class MapManager {
 
   // Layer che bloccano il movimento (muri e buchi)
   get collidableLayers(): Phaser.Tilemaps.TilemapLayer[] {
-    return [this._wallsLayer, this._holesLayer];
+    return [this._wallsLayer, this._holesLayer, this._accessoriesLayer];
   }
 
   // Carica la tilemap e i tileset da Tiled
@@ -54,6 +55,8 @@ export default class MapManager {
     this._map = this._scene.make.tilemap({ key: "tilemap" });
     this._tilesetMain = this._map.addTilesetImage("mainlevbuild", "tileset_0")!;
     this._tilesetDeco = this._map.addTilesetImage("decorative", "tileset_1")!;
+    this._tilesetTorch = this._map.addTilesetImage("torches", "tileset_2")!;
+
   }
 
   // Crea i layer della mappa (pavimento, buchi, muri, decorazioni)
@@ -62,8 +65,8 @@ export default class MapManager {
     this._holesLayer = this._map.createLayer("holes", this._tilesetMain, 0, 0)!;
     this._wallsLayer = this._map.createLayer("walls", this._tilesetMain, 0, 0)!;
     this._accessoriesLayer = this._map.createLayer(
-      "accessories",
-      [this._tilesetMain, this._tilesetDeco],
+      "decorations",
+      [this._tilesetMain, this._tilesetDeco, this._tilesetTorch],
       0,
       0
     )!;
@@ -73,6 +76,7 @@ export default class MapManager {
   private _setupCollisions(): void {
     this._wallsLayer.setCollisionByProperty({ collide: true });
     this._holesLayer.setCollisionByProperty({ collide: true });
+    this._accessoriesLayer.setCollisionByProperty({ collide: true });
   }
 
   // Scala tutti i layer della mappa
