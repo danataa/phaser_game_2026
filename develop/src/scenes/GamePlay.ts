@@ -1,68 +1,106 @@
-import Player from "../game_components/Player";
+import Phaser from "phaser";
 import MapManager from "../game_components/MapManager";
+import Merchant from "../game_components/Merchant";
+import Player from "../game_components/Player";
 import WaveManager from "../game_components/WaveManager";
 import PerkAOE from "../game_components/perks/PerkAOE";
 import PerkDash from "../game_components/perks/PerkDash";
 
-// Scena principale di gioco: crea la mappa e il player
+// Scena principale di gioco: crea la mappa e il player.
 export default class GamePlay extends Phaser.Scene {
+    private _player: Player;
+    private _merchant: Merchant;
+    private _waveManager: WaveManager;
+    private _mapManager: MapManager;
+    private _enemyGroup: Phaser.Physics.Arcade.Group;
 
-  private _player: Player;
+    constructor() {
+        super({ key: "GamePlay" });
+    }
 
-  private _waveManager: WaveManager;
-  private _enemyGroup: Phaser.Physics.Arcade.Group;
+    get player(): Player {
+        return this._player;
+    }
 
-  private _mapManager: MapManager;
+    get merchant(): Merchant {
+        return this._merchant;
+    }
 
-  constructor() {
-    super({ key: "GamePlay" });
-  }
+    get waveManager(): WaveManager {
+        return this._waveManager;
+    }
 
-  init() {}
+    get mapManager(): MapManager {
+        return this._mapManager;
+    }
 
-  create() {
-    this._mapManager = new MapManager(this);
+    create(): void {
+        this._mapManager = new MapManager(this);
 
-    // Posiziona il player al centro della mappa
-    this._player = new Player(this, this._mapManager.widthInPixels / 2, this._mapManager.heightInPixels / 2);
-    this._player.setScale(2);
-    this._player.setPerkSlotQ(new PerkAOE(this._player, 120, 50, 2000));
-    this._player.setPerkSlotE(new PerkDash(this._player, 1800, 110, 1200));
-    this._mapManager.addCollider(this._player);
-    this._mapManager.setupCamera(this._player);
+        this._player = new Player(
+            this,
+            this._mapManager.widthInPixels / 2,
+            this._mapManager.heightInPixels / 2,
+        );
+        this._player.setScale(2);
 
-    this._enemyGroup = this.physics.add.group({ runChildUpdate: true });
+        /**
+         * We keep one default perk per slot to preserve controls continuity while
+         * still allowing the shop to replace temporary perks explicitly.
+         */
+        this._player.setPerkSlotQ(new PerkAOE(this._player, 120, 50, 2000));
+        this._player.setPerkSlotE(new PerkDash(this._player, 1800, 110, 1200));
 
-    this._waveManager = new WaveManager(this, this._enemyGroup);
-    this.events.on("wave-complete", this._onWaveComplete, this);
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, this._onShutdown, this);
-    this._waveManager.startWave(1);
+        this._mapManager.addCollider(this._player);
+        this._mapManager.setupCamera(this._player);
 
-    /* Esempio di creazione nemici */
+        this._merchant = new Merchant(
+            this,
+            this._mapManager.widthInPixels / 2,
+            this._mapManager.heightInPixels / 2,
+        );
+        this._mapManager.addCollider(this._merchant);
+        this.physics.add.collider(this._player, this._merchant);
 
-    // this._zombie = new Zombie(
-    //   this,                                                  <-- scena corrente
-    //   this._mapManager.widthInPixels / 2 ,                   <-- posizione X (centro mappa)
-    //   this._mapManager.heightInPixels / 2,                   <-- posizione Y (centro mappa)
-    //   this._player,                                          <-- target (player)
-    // );
-    // this._zombie.setMapManager(this._mapManager);            <-- assegna il map manager al nemico per pathfinding (pathfinding = AI di movimento)
-    // this._mapManager.addCollider(this._zombie);              <-- aggiunge il nemico al sistema di collisioni della mappa
-  }
+        this._enemyGroup = this.physics.add.group({ runChildUpdate: true });
+        this._waveManager = new WaveManager(this, this._enemyGroup);
 
-  update(_time: number, _delta: number): void {
-    this._player?.update();
-    // this._zombie.update();                                   <-- aggiorna il comportamento del nemico (inseguimento, attacco, ecc.)
-  }
+        this.events.on("update-score", this._onUpdateScore, this);
+        this.events.on("wave-complete", this._onWaveComplete, this);
+        this.events.once(Phaser.Scenes.Events.SHUTDOWN, this._onShutdown, this);
 
-  private _onWaveComplete(completedWave: number): void {
-    this.time.delayedCall(2000, () => {
-      this._waveManager.startWave(completedWave + 1);
-    });
-  }
+        this._waveManager.startWave(1);
+    }
 
-  private _onShutdown(): void {
-    this.events.off("wave-complete", this._onWaveComplete, this);
-    this._waveManager.stop();
-  }
+    update(): void {
+        this._player?.update();
+        this._merchant?.update(this._player.x, this._player.y);
+        this._waveManager?.update();
+    }
+
+    private _onUpdateScore(soulsValue: number): void {
+        this._player.raccogliAnime(soulsValue);
+    }
+
+    /**
+     * We place the shop between waves to couple economy progression and combat
+     * pacing, then start the next wave only after the player exits the shop.
+     */
+    private _onWaveComplete(completedWave: number): void {
+        const nextWave = completedWave + 1;
+        this._merchant.refreshStock(nextWave);
+        this._merchant.apriShopEsterno();
+
+        this.events.once("shop-chiuso", () => {
+            this.time.delayedCall(400, () => {
+                this._waveManager.startWave(nextWave);
+            });
+        });
+    }
+
+    private _onShutdown(): void {
+        this.events.off("update-score", this._onUpdateScore, this);
+        this.events.off("wave-complete", this._onWaveComplete, this);
+        this._waveManager.stop();
+    }
 }

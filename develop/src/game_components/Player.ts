@@ -24,6 +24,9 @@ export default class Player extends Actor {
         Q: Phaser.Input.Keyboard.Key;
         E: Phaser.Input.Keyboard.Key;
     };
+    private _anime: number = 0;
+    private _hpMax: number = 100;
+    private _atk: number = this._baseAttackDamage;
 
     // --- Perk Slots ---
     private _perkSlotQ: Perk | null = null;
@@ -90,6 +93,25 @@ export default class Player extends Actor {
             return;
         }
         this.setPerkSlotE(perk);
+    }
+
+    /**
+     * Shop temporary perks fill the first free slot to avoid replacing controls
+     * unexpectedly during movement-heavy phases.
+     */
+    equipPerk(perk: Perk): "Q" | "E" {
+        if (!this._perkSlotQ) {
+            this._perkSlotQ = perk;
+            return "Q";
+        }
+
+        if (!this._perkSlotE) {
+            this._perkSlotE = perk;
+            return "E";
+        }
+
+        this._perkSlotQ = perk;
+        return "Q";
     }
 
     healByPercent(healPercent: number): void {
@@ -344,7 +366,7 @@ export default class Player extends Actor {
         const hitEnemies: Enemy[] = [];
         for (const enemy of this._getActiveEnemies()) {
             if (this.scene.physics.overlap(hitbox, enemy)) {
-                enemy.takeDamage(this._baseAttackDamage);
+                enemy.takeDamage(this._atk);
                 hitEnemies.push(enemy);
             }
         }
@@ -427,5 +449,67 @@ export default class Player extends Actor {
         }
     }
 
-    
+    get anime(): number {
+        return this._anime;
+    }
+
+    get hpMax(): number {
+        return this._hpMax;
+    }
+
+    get atk(): number {
+        return this._atk;
+    }
+
+    /**
+     * We clamp souls to non-negative values to keep UI and purchases deterministic
+     * even when multiple score events arrive in the same frame.
+     */
+    raccogliAnime(amount: number): void {
+        const nextAnime = Math.max(0, this._anime + Math.max(0, amount));
+        this._anime = nextAnime;
+        this.scene.events.emit("anime-cambiate", this._anime);
+    }
+
+    spendi(amount: number): boolean {
+        const safeAmount = Math.max(0, amount);
+
+        if (this._anime < safeAmount) {
+            return false;
+        }
+
+        this._anime -= safeAmount;
+        this.scene.events.emit("anime-cambiate", this._anime);
+        return true;
+    }
+
+    /**
+     * Permanent upgrades only touch long-term stats so slot perks on Q/E remain
+     * temporary tools and never replace movement or base input handling.
+     */
+    aumentaHp(amount: number): void {
+        const delta = Math.max(0, amount);
+        this._hpMax += delta;
+        this.setHp(Math.min(this.getHp + delta, this._hpMax));
+        this.scene.events.emit("vita-cambiata", this.getHp, this._hpMax);
+    }
+
+    aumentaAtk(amountPercent: number): void {
+        const percent = Math.max(0, amountPercent);
+        this._atk = Math.floor(this._atk * (1 + percent / 100));
+        this.scene.events.emit("danno-cambiato", this._atk);
+    }
+
+    aumentaVelocita(amount: number): void {
+        const delta = Math.max(0, amount);
+        this.setSpeed(this.speed + delta);
+    }
+
+    getHpMax(): number {
+        return this._hpMax;
+    }
+
+    getAtk(): number {
+        return this._atk;
+    }
 }

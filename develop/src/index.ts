@@ -6,6 +6,7 @@ import Preloader from "./scenes/Preloader";
 import GamePlay from "./scenes/GamePlay";
 import GameOver from "./scenes/GameOver";
 import Menu from "./scenes/Menu";
+import ShopUI from "./scenes/ShopUI";
 
 import { GameData } from "./GameData";
 
@@ -29,7 +30,8 @@ window.addEventListener("load", () => {
       Preloader,
       Menu,
       GamePlay,
-      GameOver
+      GameOver,
+      ShopUI
     ],
 
     physics: {
