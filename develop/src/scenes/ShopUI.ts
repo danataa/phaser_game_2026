@@ -37,6 +37,13 @@ export default class ShopUI extends Phaser.Scene {
       return;
     }
 
+    // Se un'ondata è in corso, chiudi lo shop
+    if (gamePlayScene._waveManager?.isOndataActive()) {
+      console.warn("⚠️ Ondata in corso! Shop bloccato.");
+      this._closeShop();
+      return;
+    }
+
     const W = this.cameras.main.width;
     const H = this.cameras.main.height;
     const CX = W / 2;

@@ -212,6 +212,20 @@ export default class Merchant extends Actor {
 
     if (distanza <= this._raggioInterazione) {
       this._prompt.setVisible(true);
+      
+      // Controlla se un'ondata è in corso
+      const gamePlayScene = this._scena.scene.get("GamePlay") as any;
+      const ondataAttiva = gamePlayScene._waveManager?.isOndataActive() || false;
+      
+      // Cambia il testo in base allo stato dell'ondata
+      if (ondataAttiva) {
+        this._prompt.setText("Al termine puoi aprire");
+        this._prompt.setColor("#ff6666");
+      } else {
+        this._prompt.setText("[ F ] Apri negozio");
+        this._prompt.setColor("#ffaa00");
+      }
+      
       if (Phaser.Input.Keyboard.JustDown(this._tastoInterazione)) {
         this._apriShop();
       }
@@ -221,6 +235,13 @@ export default class Merchant extends Actor {
   }
 
   private _apriShop(): void {
+    // Controlla se un'ondata è in corso
+    const gamePlayScene = this._scena.scene.get("GamePlay") as any;
+    if (gamePlayScene._waveManager?.isOndataActive()) {
+      console.warn("⚠️ Negozio bloccato! Un'ondata è in corso. Termina i nemici per accedere al negozio.");
+      return;
+    }
+
     this._shopAperto = true;
     this._prompt.setVisible(false);
     console.log("🛒 Shop aperto!");

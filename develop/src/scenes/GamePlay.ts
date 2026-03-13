@@ -2,6 +2,7 @@ import Player from "../game_components/Player";
 import MapManager from "../game_components/MapManager";
 import Zombie from "../game_components/enemies/Zombie";
 import Merchant from "../game_components/Merchant";
+import WaveManager from "../game_components/WaveManager";
 
 // Scena principale di gioco: crea la mappa e il player
 export default class GamePlay extends Phaser.Scene {
@@ -9,6 +10,7 @@ export default class GamePlay extends Phaser.Scene {
   public _player: Player;
   private _zombie: Zombie
   public _merchant: Merchant;
+  public _waveManager: WaveManager;
 
   private _mapManager: MapManager;
 
@@ -38,6 +40,9 @@ export default class GamePlay extends Phaser.Scene {
     // Collisione tra player e merchant
     this.physics.add.collider(this._player, this._merchant);
 
+    // Crea il WaveManager
+    this._waveManager = new WaveManager(this);
+
     /* Esempio di creazione nemici */
 
     // this._zombie = new Zombie(
@@ -53,6 +58,7 @@ export default class GamePlay extends Phaser.Scene {
   update(_time: number, _delta: number): void {
     this._player?.update();
     this._merchant?.update(this._player.x, this._player.y);
+    this._waveManager?.update();
     // this._zombie.update();                                   <-- aggiorna il comportamento del nemico (inseguimento, attacco, ecc.)
   }
 }
