@@ -91,7 +91,7 @@ export default class Merchant extends Actor {
     this.anims.play("merchant_idle_anim");
 
     this._tastoInterazione = scene.input.keyboard!.addKey(
-      Phaser.Input.Keyboard.KeyCodes.E
+      Phaser.Input.Keyboard.KeyCodes.F
     );
 
     this._etichetta = scene.add.text(x, y - 90, "MERCANTE", {
@@ -102,7 +102,7 @@ export default class Merchant extends Actor {
       strokeThickness: 4,
     }).setOrigin(0.5);
 
-    this._prompt = scene.add.text(x, y - 120, "[ E ] Apri negozio", {
+    this._prompt = scene.add.text(x, y - 120, "[ F ] Apri negozio", {
       fontFamily: "'Press Start 2P'",
       fontSize: "20px",
       color: "#ffffff",
