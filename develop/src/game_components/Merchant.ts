@@ -57,7 +57,7 @@ export default class Merchant extends Actor {
   private _moltiplicatoreScaling: number = 1;
   private _ondataCorrente: number = 1;
   private _shopAperto: boolean = false;
-  private _raggioInterazione: number = 120;
+  private _raggioInterazione: number = 300;
   private _tastoInterazione: Phaser.Input.Keyboard.Key;
   private _etichetta: Phaser.GameObjects.Text;
   private _prompt: Phaser.GameObjects.Text;
@@ -65,24 +65,30 @@ export default class Merchant extends Actor {
   // ================================
   // COSTRUTTORE
   // ================================
+  
   constructor(scene: Phaser.Scene, x: number, y: number) {
-    if (!scene.textures.exists("merchant_placeholder")) {
-      const gfx = scene.add.graphics();
-      gfx.fillStyle(0xffaa00);
-      gfx.fillRect(0, 0, 64, 96);
-      gfx.fillStyle(0xffcc66);
-      gfx.fillCircle(32, 16, 18);
-      gfx.fillStyle(0x884400);
-      gfx.fillTriangle(0, 50, 64, 50, 32, 96);
-      gfx.generateTexture("merchant_placeholder", 64, 96);
-      gfx.destroy();
-    }
+    super(scene, x, y, "merchant_idle");
 
-    super(scene, x, y, "merchant_placeholder");
-
-    this._scena = scene;
+    this._scena = scene;  
     this.setImmovable(true);
-    this.setScale(1.5);
+    this.setOrigin(0.5, 0.5);
+    this.setScale(5);
+    this.setY(this.y - 175); // Alza il PNG visivamente
+
+    // Hitbox più piccola centrata sul personaggio
+    this.setSize(30, 73);
+    this.setOffset(110, 95);
+
+    // Crea e avvia l'animazione idle infinita (8 frame)
+    if (!this.scene.anims.exists("merchant_idle_anim")) {
+      this.scene.anims.create({
+        key: "merchant_idle_anim",
+        frames: this.scene.anims.generateFrameNumbers("merchant_idle", { start: 0, end: 7 }),
+        frameRate: 10,
+        repeat: -1,
+      });
+    }
+    this.anims.play("merchant_idle_anim");
 
     this._tastoInterazione = scene.input.keyboard!.addKey(
       Phaser.Input.Keyboard.KeyCodes.E

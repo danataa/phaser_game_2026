@@ -25,6 +25,8 @@ export let GameData: gameData = {
     { name: "player_walk", path: "assets/spritesheets/knight/Walk.png", width: 128, height: 128, frames: 8 },
     { name: "player_attack", path: "assets/spritesheets/knight/Attack 1.png", width: 128, height: 128, frames: 5 },
 
+    { name: "merchant_idle", path: "assets/spritesheets/Merchant/Idle.png", width: 250, height: 250, frames: 8 },
+
     { name: "zombie_idle", path: "assets/spritesheets/zombie/Idle.png", width: 128, height: 128, frames: 6 },
     { name: "zombie_walk", path: "assets/spritesheets/zombie/Walk.png", width: 128, height: 128, frames: 10 },
     { name: "zombie_attack", path: "assets/spritesheets/zombie/Attack.png", width: 128, height: 128, frames: 4 },

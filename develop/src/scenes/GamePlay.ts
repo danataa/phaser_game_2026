@@ -34,6 +34,9 @@ export default class GamePlay extends Phaser.Scene {
       this._mapManager.heightInPixels / 2
     );
     this._mapManager.addCollider(this._merchant);
+    
+    // Collisione tra player e merchant
+    this.physics.add.collider(this._player, this._merchant);
 
     /* Esempio di creazione nemici */
 
