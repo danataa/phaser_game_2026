@@ -1,12 +1,14 @@
 import Player from "../game_components/Player";
 import MapManager from "../game_components/MapManager";
-import Zombie from "../game_components/enemies/Zombie";
+import WaveManager from "../game_components/WaveManager";
 
 // Scena principale di gioco: crea la mappa e il player
 export default class GamePlay extends Phaser.Scene {
 
   private _player: Player;
-  private _zombie: Zombie
+
+  private _waveManager: WaveManager;
+  private _enemyGroup: Phaser.Physics.Arcade.Group;
 
   private _mapManager: MapManager;
 
@@ -25,6 +27,13 @@ export default class GamePlay extends Phaser.Scene {
     this._mapManager.addCollider(this._player);
     this._mapManager.setupCamera(this._player);
 
+    this._enemyGroup = this.physics.add.group({ runChildUpdate: true });
+
+    this._waveManager = new WaveManager(this, this._enemyGroup);
+    this.events.on("wave-complete", this._onWaveComplete, this);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, this._onShutdown, this);
+    this._waveManager.startWave(1);
+
     /* Esempio di creazione nemici */
 
     // this._zombie = new Zombie(
@@ -40,5 +49,16 @@ export default class GamePlay extends Phaser.Scene {
   update(_time: number, _delta: number): void {
     this._player?.update();
     // this._zombie.update();                                   <-- aggiorna il comportamento del nemico (inseguimento, attacco, ecc.)
+  }
+
+  private _onWaveComplete(completedWave: number): void {
+    this.time.delayedCall(2000, () => {
+      this._waveManager.startWave(completedWave + 1);
+    });
+  }
+
+  private _onShutdown(): void {
+    this.events.off("wave-complete", this._onWaveComplete, this);
+    this._waveManager.stop();
   }
 }
