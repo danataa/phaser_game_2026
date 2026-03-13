@@ -45,7 +45,6 @@ export default class Player extends Actor {
     private _isAttacking: boolean = false;
     private _isDashing: boolean = false;
     private readonly _meleeDamage: number = 25;
-<<<<<<< HEAD
     private readonly _baseSpeed: number = 500;
     private readonly _maxHp: number = 100;
     private readonly _bulletSpeed: number = 900;
@@ -83,12 +82,11 @@ export default class Player extends Actor {
             flashDurationMs: 100,
         },
     };
-=======
+
     private readonly _smashCooldownMs: number = 2000;
     private _canUseSmash: boolean = true;
     public playerSouls: number = 0;
     private readonly _onUpdateScore: (souls: number) => void;
->>>>>>> origin/feature/fix_player_souls
 
     constructor(scene: Phaser.Scene, x: number, y: number) {
         super(scene, x, y, "player_idle");
