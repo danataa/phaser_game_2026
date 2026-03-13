@@ -5,6 +5,9 @@ import * as EasyStar from "easystarjs";
 
 // Classe base per tutti i nemici.
 export default class Enemy extends Actor {
+    private static _enemyGroup: Phaser.Physics.Arcade.Group | null = null;
+    private static _enemyColliderRegistered: boolean = false;
+
     // --- Configuration Properties (bilanciamento e stato base) ---
     protected _damage: number = 0;
     protected _target: Player | null;
@@ -190,5 +193,97 @@ export default class Enemy extends Actor {
             x: tileX * map.tileWidth * scale + (map.tileWidth * scale) / 2,
             y: tileY * map.tileHeight * scale + (map.tileHeight * scale) / 2,
         };
+    }
+
+    static configureEnemyCollisions(scene: Phaser.Scene, enemyGroup: Phaser.Physics.Arcade.Group): void {
+        if (Enemy._enemyGroup !== enemyGroup) {
+            Enemy._enemyGroup = enemyGroup;
+            Enemy._enemyColliderRegistered = false;
+        }
+
+        if (Enemy._enemyColliderRegistered || !Enemy._enemyGroup) {
+            return;
+        }
+
+        scene.physics.add.overlap(
+            Enemy._enemyGroup,
+            Enemy._enemyGroup,
+            (objA, objB) => {
+                const enemyA = objA as Phaser.Physics.Arcade.Sprite;
+                const enemyB = objB as Phaser.Physics.Arcade.Sprite;
+                Enemy._applySoftSeparation(enemyA, enemyB);
+            },
+            (objA, objB) => {
+                const enemyA = objA as Phaser.Physics.Arcade.Sprite;
+                const enemyB = objB as Phaser.Physics.Arcade.Sprite;
+                const bodyA = enemyA.body as Phaser.Physics.Arcade.Body | null;
+                const bodyB = enemyB.body as Phaser.Physics.Arcade.Body | null;
+
+                return !!(
+                    enemyA !== enemyB &&
+                    enemyA.active &&
+                    enemyB.active &&
+                    bodyA &&
+                    bodyB &&
+                    bodyA.enable &&
+                    bodyB.enable
+                );
+            }
+        );
+
+        Enemy._enemyColliderRegistered = true;
+    }
+
+    private static _applySoftSeparation(
+        enemyA: Phaser.Physics.Arcade.Sprite,
+        enemyB: Phaser.Physics.Arcade.Sprite,
+    ): void {
+        const bodyA = enemyA.body as Phaser.Physics.Arcade.Body | null;
+        const bodyB = enemyB.body as Phaser.Physics.Arcade.Body | null;
+
+        if (!bodyA || !bodyB || !bodyA.enable || !bodyB.enable) {
+            return;
+        }
+
+        let dx = enemyB.x - enemyA.x;
+        let dy = enemyB.y - enemyA.y;
+        let distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance === 0) {
+            dx = Math.random() - 0.5;
+            dy = Math.random() - 0.5;
+            distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance === 0) {
+                return;
+            }
+        }
+
+        const nx = dx / distance;
+        const ny = dy / distance;
+        const minDistance = (Math.min(bodyA.width, bodyA.height) + Math.min(bodyB.width, bodyB.height)) * 0.45;
+
+        if (distance >= minDistance) {
+            return;
+        }
+
+        const overlap = minDistance - distance;
+        const separation = Math.min(overlap * 0.6, 4);
+
+        enemyA.x -= nx * separation;
+        enemyA.y -= ny * separation;
+        enemyB.x += nx * separation;
+        enemyB.y += ny * separation;
+
+        const relativeVelocityX = bodyB.velocity.x - bodyA.velocity.x;
+        const relativeVelocityY = bodyB.velocity.y - bodyA.velocity.y;
+        const approachSpeed = relativeVelocityX * nx + relativeVelocityY * ny;
+
+        if (approachSpeed < 0) {
+            const correction = Math.min(-approachSpeed * 0.2, 35);
+            bodyA.velocity.x -= nx * correction;
+            bodyA.velocity.y -= ny * correction;
+            bodyB.velocity.x += nx * correction;
+            bodyB.velocity.y += ny * correction;
+        }
     }
 }
