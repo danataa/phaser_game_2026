@@ -54,6 +54,7 @@ export let GameData: gameData = {
   ],
 
   images: [
+    { name: "main_logo", path: "assets/images/logos/logo_develop.jpg" },
     { name: "game_logo", path: "assets/images/logos/game_logo.png" },
     { name: "silent_production_logo", path: "assets/images/logos/logo_silent_production_scontornato.png" },
 
@@ -75,9 +76,7 @@ export let GameData: gameData = {
   ],
 
   videos: [
-
-    // { name: "video", path: "/assets/video/video.mp4" },
-
+    { name: "logovideo", path: "assets/logovideo.mp4" },
   ],
 
   audios: [

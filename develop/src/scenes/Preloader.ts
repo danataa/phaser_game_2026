@@ -86,7 +86,7 @@ export default class Preloader extends Phaser.Scene {
           duration: 1000,
           onComplete: () => {
             this.scene.stop("Preloader");
-            this.scene.start("GamePlay");
+            this.scene.start("Menu");
           },
         });
       });
@@ -122,6 +122,7 @@ export default class Preloader extends Phaser.Scene {
     // IMAGES
     if (GameData.images != null)
       GameData.images.forEach((element: ImageAsset) => {
+        console.log(`Loading image: ${element.name} from ${element.path}`);
         this.load.image(element.name, element.path);
       });
 
