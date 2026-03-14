@@ -163,25 +163,33 @@ export default class Player extends Actor {
      * dove un tint moltiplicativo puo' risultare poco leggibile.
      */
     playHealVisualFeedback(): void {
-        this.setTintFill(0x00ff00);
+        const overlay = this.scene.add.sprite(this.x, this.y, this.texture.key, this.frame.name);
+        overlay.setScale(this.scaleX, this.scaleY);
+        overlay.setOrigin(this.originX, this.originY);
+        overlay.setFlipX(this.flipX);
+        overlay.setFlipY(this.flipY);
+        overlay.setDepth(this.depth + 1);
+        overlay.setTint(0x00ff00);
+        overlay.setAlpha(0.45);
+
         this.scene.tweens.add({
-            targets: this,
-            alpha: 0.8,
-            duration: 250,
-            yoyo: true,
-            onComplete: () => {
-                this.alpha = 1;
-                this.clearTint();
+            targets: overlay,
+            alpha: 0,
+            duration: 320,
+            ease: "Sine.Out",
+            onUpdate: () => {
+                if (!this.active || !overlay.active) {
+                    return;
+                }
+
+                overlay.setPosition(this.x, this.y);
+                overlay.setFlipX(this.flipX);
+                overlay.setFlipY(this.flipY);
+                overlay.setFrame(this.frame.name);
             },
-        });
-
-        this.scene.time.delayedCall(500, () => {
-            if (!this.active) {
-                return;
-            }
-
-            this.alpha = 1;
-            this.clearTint();
+            onComplete: () => {
+                overlay.destroy();
+            },
         });
     }
 

@@ -4,6 +4,7 @@ import Merchant from "../game_components/Merchant";
 import Player from "../game_components/Player";
 import WaveManager from "../game_components/WaveManager";
 import PerkAOE from "../game_components/perks/PerkAOE";
+import PerkCura from "../game_components/perks/PerkCura";
 import PerkDash from "../game_components/perks/PerkDash";
 
 // Scena principale di gioco: crea mappa, player, shop e wave.
@@ -109,10 +110,11 @@ export default class GamePlay extends Phaser.Scene {
     this._player.setScale(2);
 
     this._player.setPerkSlotQ(new PerkAOE(this._player, 120, 50, 2000));
-    this._player.setPerkSlotE(new PerkDash(this._player, 1800, 110, 1200));
+    this._player.setPerkSlotE(new PerkCura(this._player, 0.25, 1200));
 
     this._mapManager.addCollider(this._player);
     this._mapManager.setupCamera(this._player);
+    this.cameras.main.fadeIn(1000, 0, 0, 0);
 
     this._merchant = new Merchant(
       this,
