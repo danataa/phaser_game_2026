@@ -75,8 +75,8 @@ export default class GamePlay extends Phaser.Scene {
 
         this._player = new Player(
             this,
-            this._mapManager.widthInPixels / 2,
-            this._mapManager.heightInPixels / 2,
+            (this._mapManager.widthInPixels / 2) - 50,
+            375,
         );
         this._player.setScale(2);
 
