@@ -95,6 +95,7 @@ export default class Merchant extends Actor {
   private _prompt: Phaser.GameObjects.Text;
   private _fraseBattagliaCorrente: string = "";
   private _prossimoCambioFraseBattagliaAt: number = 0;
+  private _tutorialPromptActive: boolean = false;
 
   // ================================
   // COSTRUTTORE
@@ -154,6 +155,14 @@ export default class Merchant extends Actor {
   // ================================
   public update(playerX: number, playerY: number): void {
     if (this._shopAperto) return;
+
+    if (this._tutorialPromptActive) {
+      this._etichetta.setPosition(this.x, this.y - 90);
+      this._prompt.setPosition(this.x, this.y - 120);
+      this._prompt.setVisible(true);
+      return;
+    }
+
     if (this._interactionEnabled) {
       this._controllaProssimita(playerX, playerY);
     } else {
@@ -166,6 +175,30 @@ export default class Merchant extends Actor {
   public setInteractionEnabled(enabled: boolean): void {
     this._interactionEnabled = enabled;
     if (!enabled) {
+      this._prompt.setVisible(false);
+    }
+  }
+
+  /**
+   * Il tutorial riusa la stessa finestra sopra la testa del mercante per
+   * mantenere un unico canale visivo dei dialoghi in tutta la partita.
+   */
+  public startTutorialPrompt(): void {
+    this._tutorialPromptActive = true;
+    this._prompt.setVisible(true);
+    this._prompt.setColor("#ffaa00");
+  }
+
+  public setTutorialPromptText(message: string): void {
+    this._tutorialPromptActive = true;
+    this._prompt.setText(message);
+    this._prompt.setVisible(true);
+    this._prompt.setColor("#ffaa00");
+  }
+
+  public stopTutorialPrompt(): void {
+    this._tutorialPromptActive = false;
+    if (!this._interactionEnabled || this._shopAperto) {
       this._prompt.setVisible(false);
     }
   }

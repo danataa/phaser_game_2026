@@ -25,6 +25,7 @@ export default class GamePlay extends Phaser.Scene {
   private _isInterWaveActive: boolean = false;
   private _pendingNextWave: number = 1;
   private _isPlayerNearMerchant: boolean = false;
+  private _hasStartedFirstWave: boolean = false;
   private _shopInteractKey: Phaser.Input.Keyboard.Key | null = null;
   private _skipInterWaveKey: Phaser.Input.Keyboard.Key | null = null;
 
@@ -145,9 +146,10 @@ export default class GamePlay extends Phaser.Scene {
     this.events.on("update-score", this._onUpdateScore, this);
     this.events.on("wave-complete", this._onWaveComplete, this);
     this.events.on("shop-chiuso", this._onShopClosed, this);
+    this.events.on("tutorial-finished", this._onTutorialFinished, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, this._onShutdown, this);
 
-    this._waveManager.startWave(1);
+    this._startGameLoopWithTutorialGate();
   }
 
   update(): void {
@@ -169,17 +171,50 @@ export default class GamePlay extends Phaser.Scene {
     this._player.raccogliAnime(soulsValue);
   }
 
+  /**
+   * Il gate usa il registry perché GamePlay può riavviarsi dopo la morte,
+   * mentre il completamento tutorial deve restare persistente.
+   */
+  private _startGameLoopWithTutorialGate(): void {
+    const tutorialCompleted = this.registry.get("tutorialCompleted") === true;
+
+    if (tutorialCompleted) {
+      this._onTutorialFinished();
+      return;
+    }
+
+    if (!this.scene.isActive("Tutorial")) {
+      this.scene.launch("Tutorial");
+    }
+
+    this.scene.bringToTop("Tutorial");
+
+    if (this.scene.isActive("Hud")) {
+      this.scene.bringToTop("Hud");
+    }
+  }
+
   private _resetRuntimeState(): void {
     this._cancelInterWaveTimer();
     this._isInterWaveActive = false;
     this._interWaveEndsAtMs = 0;
     this._pendingNextWave = 1;
     this._isPlayerNearMerchant = false;
+    this._hasStartedFirstWave = false;
   }
 
   private _onUpdateScore(currentScore: number): void {
     this.registry.set("current-score", currentScore);
     this.registry.set("final-score", currentScore);
+  }
+
+  private _onTutorialFinished(): void {
+    if (this._hasStartedFirstWave) {
+      return;
+    }
+
+    this._hasStartedFirstWave = true;
+    this._waveManager.startWave(1);
   }
 
   private _onWaveComplete(completedWave: number): void {
@@ -302,7 +337,12 @@ export default class GamePlay extends Phaser.Scene {
     this.events.off("update-score", this._onUpdateScore, this);
     this.events.off("wave-complete", this._onWaveComplete, this);
     this.events.off("shop-chiuso", this._onShopClosed, this);
+    this.events.off("tutorial-finished", this._onTutorialFinished, this);
     this._cancelInterWaveTimer();
     this._waveManager.stop();
+
+    if (this.scene.isActive("Tutorial")) {
+      this.scene.stop("Tutorial");
+    }
   }
 }
