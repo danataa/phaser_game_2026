@@ -435,28 +435,25 @@ export default class Player extends Actor {
     // Esegue un attacco base verso la posizione target nel mondo
     private _executeBaseAttack(targetX: number, targetY: number): void {
         type SensorBody = Phaser.Physics.Arcade.Body & { isSensor?: boolean };
+        const body = this.body as Phaser.Physics.Arcade.Body;
+        const playerCenterX = body?.center.x ?? this.x;
+        const playerCenterY = body?.center.y ?? this.y;
+        const isMouseLeft = targetX < playerCenterX;
 
-        const attackDirection = new Phaser.Math.Vector2(targetX - this.x, targetY - this.y);
-        if (attackDirection.lengthSq() <= this._dashDirectionEpsilon) {
-            attackDirection.set(this.flipX ? -1 : 1, 0);
-        }
-        attackDirection.normalize();
-        if (attackDirection.x !== 0) {
-            // Allinea facing/origin/offset con la stessa logica del movimento A-D
-            // per evitare snap di posizione al termine dell'animazione.
-            this._applyHorizontalFacing(attackDirection.x < 0);
-        }
+        // Allinea facing/origin/offset con la stessa logica del movimento A-D
+        // per evitare snap di posizione al termine dell'animazione.
+        this._applyHorizontalFacing(isMouseLeft);
 
-        const meleeOffsetX = attackDirection.x * this._baseAttackRange;
-        const meleeOffsetY = attackDirection.y * this._baseAttackRange;
+        const meleeOffsetX = isMouseLeft ? -this._baseAttackRange : this._baseAttackRange;
+        const meleeOffsetY = 0;
 
         this._isAttacking = true;
         this.setVelocity(0, 0);
         this.anims.play("attack_mele", true);
 
         const hitbox = this.scene.add.rectangle(
-            this.x + meleeOffsetX,
-            this.y + meleeOffsetY,
+            playerCenterX + meleeOffsetX,
+            playerCenterY + meleeOffsetY,
             this._baseAttackWidth,
             this._baseAttackHeight,
             0xffffff,
