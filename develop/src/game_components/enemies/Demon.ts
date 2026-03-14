@@ -98,6 +98,7 @@ export default class Demon extends Enemy {
 
     /** Avvia la morte del demon e ferma il timer di sparo. */
     protected startDeath(): void {
+        this._playDeathSfx();
         if (this._shootTimer) {
             this._shootTimer.destroy();
             this._shootTimer = null;

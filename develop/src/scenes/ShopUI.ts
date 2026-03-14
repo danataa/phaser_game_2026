@@ -7,6 +7,7 @@ import PerkCura from "../game_components/perks/PerkCura";
 import PerkDash from "../game_components/perks/PerkDash";
 
 export default class ShopUI extends Phaser.Scene {
+  private readonly _defaultSfxVolume: number = 0.7;
 
   // ================================
   // ATTRIBUTI
@@ -37,6 +38,21 @@ export default class ShopUI extends Phaser.Scene {
   // CREATE
   // ================================
   create() {
+    /**
+     * The welcome cue confirms successful scene entry and improves UX feedback
+     * before players evaluate perk costs under time pressure.
+     */
+    const hasWelcomeSfx = this.cache.audio.exists("welcome");
+    if (hasWelcomeSfx) {
+      try {
+        this.sound.play("welcome", {
+          volume: this._defaultSfxVolume,
+        });
+      } catch (_error) {
+        console.warn("Audio welcome non disponibile.");
+      }
+    }
+
     const gamePlayScene = this.scene.get("GamePlay") as any;
     this._merchant = gamePlayScene.merchant;
     this._player = gamePlayScene.player;

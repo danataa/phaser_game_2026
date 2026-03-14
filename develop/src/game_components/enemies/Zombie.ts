@@ -73,6 +73,7 @@ export default class Zombie extends Enemy {
 
     /** Avvia l'animazione di morte dello zombie. */
     protected startDeath(): void {
+        this._playDeathSfx();
         this.anims.play("zombie_dead", true);
     }
 

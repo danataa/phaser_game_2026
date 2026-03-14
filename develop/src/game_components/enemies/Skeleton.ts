@@ -131,6 +131,7 @@ export default class Skeleton extends Enemy {
 
     /** Avvia l'animazione di morte dello skeleton. */
     protected startDeath(): void {
+        this._playDeathSfx();
         this.anims.play("skeleton_dead", true);
     }
 

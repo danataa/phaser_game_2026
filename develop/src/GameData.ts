@@ -1,5 +1,5 @@
 // Configurazione globale: impostazioni di gioco e lista degli asset da caricare
-export let GameData: gameData = {
+export const GameData: any = {
   globals: {
     gameWidth: 1920,
     gameHeight: 1080,
@@ -66,28 +66,39 @@ export let GameData: gameData = {
   atlas: [],
 
   sounds: [
-    /*{
-    name: "music",
-    paths: ["assets/sounds/intro.ogg", "assets/sounds/intro.m4a"],
-    volume: 1,
-    loop: true,
-    frame: 1,
-  }*/
+    {
+      name: "menu_music",
+      paths: [
+        "assets/sounds/music/epic_skyrym.ogg",
+        "assets/sounds/music/epic_skyrym.m4a",
+      ],
+    },
+    {
+      name: "game_music",
+      paths: [
+        "assets/sounds/music/doungeon_skyrym.ogg",
+        "assets/sounds/music/doungeon_skyrym.m4a",
+      ],
+    },
+    {
+      name: "player_dead",
+      paths: ["assets/sounds/effects/player_dead.mp3"],
+    },
+    {
+      name: "enemy_dead",
+      paths: ["assets/sounds/effects/enemy_dead.mp3"],
+    },
+    {
+      name: "welcome",
+      paths: ["assets/sounds/effects/welcome.mp3"],
+    },
   ],
 
   videos: [
     { name: "logovideo", path: "assets/logovideo.mp4" },
   ],
 
-  audios: [
-
-    /*{
-    name: "sfx",
-    jsonpath: "assets/sounds/sfx.json",
-    paths: ["assets/sounds/sfx.ogg", "assets/sounds/sfx.m4a"],
-    instances: 10,
-  }*/
-  ],
+  audios: [],
 
   scripts: [
     // { name: "script", path: "assets/scripts/script.js" },

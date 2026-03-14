@@ -14,6 +14,7 @@ export default class Player extends Actor {
     private readonly _dashDirectionEpsilon: number = 0.0001;
     private readonly _dashOverlayAlpha: number = 0.45;
     private readonly _dashOverlayTint: number = 0xffdd44;
+    private readonly _defaultSfxVolume: number = 0.7;
 
     // --- Input & State ---
     private _keys: {
@@ -35,6 +36,7 @@ export default class Player extends Actor {
     // --- Combat State ---
     private _isAttacking: boolean = false;
     private _isDashing: boolean = false;
+    private _hasPlayedDeathSfx: boolean = false;
     private _lastMoveDirection: Phaser.Math.Vector2 = new Phaser.Math.Vector2(1, 0);
 
     constructor(scene: Phaser.Scene, x: number, y: number) {
@@ -152,9 +154,34 @@ export default class Player extends Actor {
      * avoid diverging state between healing perks and enemy damage ticks.
      */
     takeDamage(amount: number): void {
+        const previousHp = this.getHp;
         super.takeDamage(amount);
         if (this.getHp < 0) {
             this.setHp(0);
+        }
+
+        /**
+         * The one-shot guard avoids stacked death SFX when multiple damage
+         * sources resolve in the same frame at zero HP.
+         */
+        if (
+            previousHp > 0 &&
+            this.getHp === 0 &&
+            !this._hasPlayedDeathSfx
+        ) {
+            const hasPlayerDeadSfx = this.scene.cache.audio.exists(
+                "player_dead",
+            );
+            if (hasPlayerDeadSfx) {
+                try {
+                    this.scene.sound.play("player_dead", {
+                        volume: this._defaultSfxVolume,
+                    });
+                } catch (_error) {
+                    console.warn("Audio player_dead non disponibile.");
+                }
+            }
+            this._hasPlayedDeathSfx = true;
         }
 
         this._emitHpUpdate();

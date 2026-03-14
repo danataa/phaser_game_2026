@@ -1,4 +1,5 @@
 export default class Menu extends Phaser.Scene {
+  private readonly _defaultMusicVolume: number = 0.4;
   private _buttons: Phaser.GameObjects.Container[] = [];
   private _settingsPanel: Phaser.GameObjects.Container;
   private _creditsPanel: Phaser.GameObjects.Container;
@@ -16,6 +17,24 @@ export default class Menu extends Phaser.Scene {
 
   create() {
     const { width, height } = this.scale;
+
+    /**
+     * We gate menu playback to avoid duplicate loop instances when users
+     * re-enter the menu scene from other flows.
+     */
+    const hasMenuMusic = this.cache.audio.exists("menu_music");
+    const menuMusic = this.sound.get("menu_music");
+    const isMenuMusicPlaying = menuMusic?.isPlaying ?? false;
+    if (hasMenuMusic && !isMenuMusicPlaying) {
+      try {
+        this.sound.play("menu_music", {
+          loop: true,
+          volume: this._defaultMusicVolume,
+        });
+      } catch (_error) {
+        console.warn("Audio menu_music non disponibile.");
+      }
+    }
 
     this.cameras.main.setBackgroundColor("#000000");
     
@@ -290,6 +309,15 @@ export default class Menu extends Phaser.Scene {
       alpha: 0,
       duration: 500,
       onComplete: () => {
+        /**
+         * Stopping menu music before scene transition prevents overlap with
+         * gameplay BGM and keeps Phaser audio channels deterministic.
+         */
+        try {
+          this.sound.stopByKey("menu_music");
+        } catch (_error) {
+          console.warn("Stop menu_music non disponibile.");
+        }
         this.scene.start("GamePlay");
       }
     });

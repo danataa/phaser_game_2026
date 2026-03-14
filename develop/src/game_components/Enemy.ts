@@ -20,6 +20,7 @@ export default class Enemy extends Actor {
     private _hpBarHeight: number = 5;
     private _hpBarOffsetY: number = 14;
     private _maxHpSnapshot: number = 0;
+    protected readonly _defaultSfxVolume: number = 0.7;
 
     // --- Pathfinding state ---
     protected _mapManager: MapManager | null;
@@ -129,6 +130,25 @@ export default class Enemy extends Actor {
     /** Avvia la specifica animazione di morte della sottoclasse. */
     protected startDeath(): void {
         // Override nelle sottoclassi
+    }
+
+    /**
+     * Centralizing death SFX keeps every enemy family aligned and avoids
+     * drift when new subclasses are introduced during balancing iterations.
+     */
+    protected _playDeathSfx(): void {
+        const hasEnemyDeadSfx = this.scene.cache.audio.exists(
+            "enemy_dead",
+        );
+        if (hasEnemyDeadSfx) {
+            try {
+                this.scene.sound.play("enemy_dead", {
+                    volume: this._defaultSfxVolume,
+                });
+            } catch (_error) {
+                console.warn("Audio enemy_dead non disponibile.");
+            }
+        }
     }
 
     private _handleDeath(): void {
