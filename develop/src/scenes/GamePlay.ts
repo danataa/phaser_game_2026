@@ -145,6 +145,14 @@ export default class GamePlay extends Phaser.Scene {
     this._merchant?.update(this._player.x, this._player.y);
     this._waveManager?.update();
     this._updateInterWaveState();
+
+    /**
+     * The transition is kept in this scene because HP authority lives on the
+     * Player object updated in this loop, guaranteeing a single handoff point.
+     */
+    if (this._player.getHp <= 0) {
+      this.scene.start("GameOver");
+    }
   }
 
   private _onScoreDelta(soulsValue: number): void {
