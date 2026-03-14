@@ -20,12 +20,12 @@ export default class Menu extends Phaser.Scene {
     this.cameras.main.setBackgroundColor("#000000");
     
     this._logo = this.add.image(width / 2, height * 0.3, 'main_logo');
-    this._logo.setScale(0.8);
+    this._logo.setScale(0.5);
     
     // Logo pulse animation
     this.tweens.add({
       targets: this._logo,
-      scale: { from: 0.75, to: 0.85 },
+      scale: { from: 0.75, to: 0.80 },
       duration: 3000,
       repeat: -1,
       yoyo: true,
@@ -106,7 +106,7 @@ export default class Menu extends Phaser.Scene {
     });
 
     // ESC button display
-    this._escButton = this.add.container(width / 2, height * 0.65 + (3 * 70));
+   /* this._escButton = this.add.container(width / 2, height * 0.65 + (3 * 70));
     const escText = this.add.text(0, 0, 'ESC', {
       fontFamily: 'Roboto',
       fontSize: '28px',
@@ -134,7 +134,7 @@ export default class Menu extends Phaser.Scene {
       repeat: -1,
       yoyo: true,
       ease: 'Sine.easeInOut'
-    });
+    });*/
   }
 
   private createCreditsPanel() {

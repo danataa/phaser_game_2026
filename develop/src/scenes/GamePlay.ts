@@ -129,6 +129,11 @@ export default class GamePlay extends Phaser.Scene {
         this._merchant?.update(this._player.x, this._player.y);
         this._waveManager?.update();
         this._updateInterWaveState();
+
+        // Transition to GameOver when player health drops to 0 or below
+        if (this._player && this._player.getHp <= 0) {
+            this.scene.start("GameOver");
+        }
     }
 
     private _onScoreDelta(soulsValue: number): void {
