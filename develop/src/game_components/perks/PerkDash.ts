@@ -18,7 +18,7 @@ export default class PerkDash extends Perk {
         super(owner, cooldown);
         this._dashPower = Math.max(0, dashPower);
         this._dashDuration = Math.max(1, dashDuration);
-        this._cooldown = Math.max(0, cooldown);
+        this._cooldown = Math.max(Perk.minCooldownMs, cooldown);
     }
 
     get dashPower(): number {

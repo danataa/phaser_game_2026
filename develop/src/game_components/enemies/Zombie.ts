@@ -4,12 +4,12 @@ import Player from "../Player";
 // Nemico di tipo zombie.
 export default class Zombie extends Enemy {
     // --- Configuration Properties (bilanciamento) ---
-    private readonly _baseDamage: number = 20;
-    private readonly _chaseSpeed: number = 380;
-    private readonly _baseHp: number = 50;
+    private readonly _baseDamage: number = 18;
+    private readonly _chaseSpeed: number = 180;
+    private readonly _baseHp: number = 140;
     private readonly _soulsReward: number = 10;
     private readonly _attackRange: number = 50;
-    private readonly _attackDelay: number = 800;
+    private readonly _attackDelay: number = 900;
 
     // --- Runtime State ---
     private _canAttack: boolean = true;
@@ -18,10 +18,12 @@ export default class Zombie extends Enemy {
     constructor(scene: Phaser.Scene, x: number, y: number, target: Player) {
         super(scene, x, y, "zombie_idle", target);
 
-        this.setDamage(this._baseDamage);
+        this._setBaseStats(
+            this._baseDamage,
+            this._baseHp,
+            this._soulsReward,
+        );
         this.setSpeed(this._chaseSpeed);
-        this.setHp(this._baseHp);
-        this._soulsValue = this._soulsReward;
 
         this.create();
     }

@@ -4,16 +4,16 @@ import Player from "../Player";
 // Nemico di tipo scheletro con abilità di Carica Rapida (dash).
 export default class Skeleton extends Enemy {
     // --- Configuration Properties (bilanciamento) ---
-    private readonly _baseDamage: number = 25;
-    private readonly _normalSpeed: number = 200;
-    private readonly _baseHp: number = 60;
-    private readonly _soulsReward: number = 15;
+    private readonly _baseDamage: number = 20;
+    private readonly _normalSpeed: number = 320;
+    private readonly _baseHp: number = 90;
+    private readonly _soulsReward: number = 25;
     protected readonly _dashSpeed: number = 600;
     protected readonly _dashRange: number = 400;
-    private readonly _dashDuration: number = 500;
-    private readonly _dashCooldownDuration: number = 3000;
+    private readonly _dashDuration: number = 420;
+    private readonly _dashCooldownDuration: number = 2600;
     private readonly _attackRange: number = 50;
-    private readonly _attackDelay: number = 800;
+    private readonly _attackDelay: number = 520;
 
     // --- Runtime State ---
     protected _dashCooldown: boolean = false;
@@ -24,10 +24,12 @@ export default class Skeleton extends Enemy {
     constructor(scene: Phaser.Scene, x: number, y: number, target: Player) {
         super(scene, x, y, "skeleton_idle", target);
 
-        this.setDamage(this._baseDamage);
+        this._setBaseStats(
+            this._baseDamage,
+            this._baseHp,
+            this._soulsReward,
+        );
         this.setSpeed(this._normalSpeed);
-        this.setHp(this._baseHp);
-        this._soulsValue = this._soulsReward;
 
         this.create();
     }

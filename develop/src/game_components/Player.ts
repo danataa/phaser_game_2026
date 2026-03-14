@@ -14,7 +14,7 @@ type HpUpdateTrigger =
 export default class Player extends Actor {
     // --- Configuration Properties ---
     private readonly _maxHp: number = 100;
-    private readonly _baseAttackDamage: number = 25;
+    private readonly _baseAttackDamage: number = 50;
     private readonly _baseAttackRange: number = 56;
     private readonly _baseAttackWidth: number = 64;
     private readonly _baseAttackHeight: number = 44;

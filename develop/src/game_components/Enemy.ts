@@ -13,6 +13,9 @@ export default class Enemy extends Actor {
     protected _target: Player | null;
     protected _isDead: boolean = false;
     protected _soulsValue: number = 0;
+    protected _baseDamageValue: number = 0;
+    protected _baseHpValue: number = 0;
+    protected _baseSoulsValue: number = 0;
     protected _pathRecalculateDelay: number = 1500;
     private _hpBarBackground: Phaser.GameObjects.Rectangle | null = null;
     private _hpBar: Phaser.GameObjects.Rectangle | null = null;
@@ -68,6 +71,18 @@ export default class Enemy extends Actor {
         return this._soulsValue;
     }
 
+    get baseDamageValue(): number {
+        return this._baseDamageValue;
+    }
+
+    get baseHpValue(): number {
+        return this._baseHpValue;
+    }
+
+    get baseSoulsValue(): number {
+        return this._baseSoulsValue;
+    }
+
     // --- Phaser Lifecycle ---
 
     create(): void {
@@ -89,6 +104,23 @@ export default class Enemy extends Actor {
 
     setDamage(value: number): void {
         this._damage = value;
+    }
+
+    setSoulsValue(value: number): void {
+        this._soulsValue = Math.max(0, Math.floor(value));
+    }
+
+    protected _setBaseStats(
+        damage: number,
+        hp: number,
+        souls: number,
+    ): void {
+        this._baseDamageValue = Math.max(0, Math.floor(damage));
+        this._baseHpValue = Math.max(1, Math.floor(hp));
+        this._baseSoulsValue = Math.max(0, Math.floor(souls));
+        this.setDamage(this._baseDamageValue);
+        this.setHp(this._baseHpValue);
+        this.setSoulsValue(this._baseSoulsValue);
     }
 
     setHp(value: number): void {

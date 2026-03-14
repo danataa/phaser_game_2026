@@ -5,12 +5,12 @@ import Fireball from "./Fireball";
 // Nemico di tipo demon che attacca a distanza con fireball.
 export default class Demon extends Enemy {
     // --- Configuration Properties (bilanciamento) ---
-    private readonly _baseDamage: number = 30;
-    private readonly _chaseSpeed: number = 350;
-    private readonly _baseHp: number = 80;
-    private readonly _soulsReward: number = 20;
-    private readonly _shootRate: number = 3000;
-    private readonly _detectionRange: number = 500;
+    private readonly _baseDamage: number = 42;
+    private readonly _chaseSpeed: number = 250;
+    private readonly _baseHp: number = 60;
+    private readonly _soulsReward: number = 50;
+    private readonly _shootRate: number = 2000;
+    private readonly _detectionRange: number = 420;
     private readonly _targetOffsetX: number = 16;
     private readonly _targetOffsetY: number = 50;
 
@@ -22,10 +22,12 @@ export default class Demon extends Enemy {
     constructor(scene: Phaser.Scene, x: number, y: number, target: Player) {
         super(scene, x, y, "demon_idle", target);
 
-        this.setDamage(this._baseDamage);
+        this._setBaseStats(
+            this._baseDamage,
+            this._baseHp,
+            this._soulsReward,
+        );
         this.setSpeed(this._chaseSpeed);
-        this.setHp(this._baseHp);
-        this._soulsValue = this._soulsReward;
 
         this.create();
     }

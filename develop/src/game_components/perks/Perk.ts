@@ -8,6 +8,7 @@ import type Player from "../Player";
  */
 export default abstract class Perk {
     // --- Configuration Properties ---
+    private static readonly MIN_COOLDOWN_MS: number = 200;
     private readonly _owner: Player;
     private readonly _delayMs: number;
 
@@ -16,7 +17,15 @@ export default abstract class Perk {
 
     protected constructor(owner: Player, delayMs: number) {
         this._owner = owner;
-        this._delayMs = Math.max(0, delayMs);
+        /**
+         * A 200ms floor prevents degenerate spam loops that erase timing skill.
+         * Below this threshold, perceived input cadence collapses into noise.
+         */
+        this._delayMs = Math.max(Perk.MIN_COOLDOWN_MS, delayMs);
+    }
+
+    static get minCooldownMs(): number {
+        return Perk.MIN_COOLDOWN_MS;
     }
 
     get owner(): Player {

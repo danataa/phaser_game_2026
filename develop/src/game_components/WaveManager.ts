@@ -32,6 +32,9 @@ export default class WaveManager {
     private readonly _spawnSafetyDistancePx: number = 100;
     private readonly _basePoints: number = 60;
     private readonly _difficultyMultiplier: number = 25;
+    private readonly _maxHpMultiplier: number = 3.2;
+    private readonly _maxDamageMultiplier: number = 2.4;
+    private readonly _maxSoulsMultiplier: number = 2.8;
 
     private readonly _scene: Phaser.Scene;
     private readonly _enemyGroup: Phaser.Physics.Arcade.Group;
@@ -358,14 +361,73 @@ export default class WaveManager {
             this._mapManager.addCollider(enemy);
         }
 
+        const hpMultiplier = this._getHpMultiplier(this._currentWave);
+        const damageMultiplier = this._getDamageMultiplier(this._currentWave);
+        const soulsMultiplier = this._getSoulsMultiplier(this._currentWave);
+        const scaledHp = Math.floor(enemy.baseHpValue * hpMultiplier);
+        const scaledDamage = Math.floor(
+            enemy.baseDamageValue * damageMultiplier,
+        );
+        const scaledSouls = Math.floor(
+            enemy.baseSoulsValue * soulsMultiplier,
+        );
+
+        enemy.setHp(Math.max(1, scaledHp));
+        enemy.setDamage(Math.max(1, scaledDamage));
+        enemy.setSoulsValue(Math.max(1, scaledSouls));
+
         this._enemyGroup.add(enemy, true);
         this._spawnedEnemiesCount += 1;
         this._activeWaveEnemies.add(enemy);
 
+        const scaledSoulsValue = enemy.soulsValue;
+
         enemy.once(Phaser.GameObjects.Events.DESTROY, () => {
             this._activeWaveEnemies.delete(enemy);
+
+            if (enemy.isDead && this._player) {
+                this._scene.events.emit(
+                    "update-score",
+                    this._player.anime,
+                    scaledSoulsValue,
+                );
+            }
+
             this._checkWaveCompletion();
         });
+    }
+
+    /**
+     * Linear HP growth preserves readabile time-to-kill progression across waves.
+     * Exponential curves reduce retention because spikes arrive too early.
+     */
+    private _getHpMultiplier(waveNumber: number): number {
+        const waveOffset = Math.max(0, waveNumber - 1);
+        const step = this._difficultyMultiplier / 250;
+        const value = 1 + waveOffset * step;
+        return Math.min(this._maxHpMultiplier, value);
+    }
+
+    /**
+     * Damage scales slower than HP to keep dodge windows meaningful.
+     * With this slope, early mistakes hurt without forcing one-shot scenarios.
+     */
+    private _getDamageMultiplier(waveNumber: number): number {
+        const waveOffset = Math.max(0, waveNumber - 1);
+        const step = this._difficultyMultiplier / 400;
+        const value = 1 + waveOffset * step;
+        return Math.min(this._maxDamageMultiplier, value);
+    }
+
+    /**
+     * Souls grow with a gentler slope than Shop costs to maintain decisions.
+     * This keeps purchases strategic while still rewarding wave mastery.
+     */
+    private _getSoulsMultiplier(waveNumber: number): number {
+        const waveOffset = Math.max(0, waveNumber - 1);
+        const step = this._difficultyMultiplier / 250;
+        const value = 1 + waveOffset * step;
+        return Math.min(this._maxSoulsMultiplier, value);
     }
 
     getSpawnPosition(): Phaser.Math.Vector2 {
