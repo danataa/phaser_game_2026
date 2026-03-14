@@ -66,94 +66,59 @@ export default class Menu extends Phaser.Scene {
   private createMenuButtons() {
     const { width, height } = this.scale;
     const buttonData = [
-      { text: 'PLAY', action: () => this.startGame() },
-      { text: 'SETTINGS', action: () => this.toggleSettings(true) },
-      { text: 'CREDITS', action: () => this.toggleCredits(true) }
+      {
+        text: 'PLAY',
+        width: 320,
+        height: 64,
+        fontSize: '18px',
+        colors: { normal: 0x6b0000, hover: 0xaa0000, border: 0xcc0000 },
+        action: () => this.startGame(),
+      },
+      {
+        text: 'SETTINGS',
+        width: 340,
+        height: 56,
+        fontSize: '14px',
+        colors: { normal: 0x1a1000, hover: 0x3a2800, border: 0xc8a800 },
+        action: () => this.toggleSettings(true),
+      },
+      {
+        text: 'CREDITS',
+        width: 340,
+        height: 56,
+        fontSize: '14px',
+        colors: { normal: 0x1a1000, hover: 0x3a2800, border: 0xc8a800 },
+        action: () => this.toggleCredits(true),
+      }
     ];
 
     buttonData.forEach((data, index) => {
-      const container = this.add.container(width / 2, height * 0.65 + (index * 70));
-      
-      const txt = this.add.text(0, 0, data.text, {
-        fontFamily: 'Roboto',
-        fontSize: '32px',
-        color: '#ffffff',
-        letterSpacing: 2
-      }).setOrigin(0.5);
-
-      container.add([txt]);
-      container.setSize(txt.width + 60, 60);
-      container.setInteractive({ useHandCursor: true });
+      const container = this._createGameOverStyleButton(
+        width / 2,
+        height * 0.65 + (index * 76),
+        data.text,
+        data.width,
+        data.height,
+        data.fontSize,
+        data.colors,
+        data.action,
+      );
       container.setAlpha(0);
-
-      // Floating animation
-      this.tweens.add({
-        targets: container,
-        y: '-=5',
-        duration: 2000 + index * 300,
-        repeat: -1,
-        yoyo: true,
-        ease: 'Sine.easeInOut'
-      });
-
-      container.on('pointerover', () => {
-        this.tweens.add({
-          targets: txt,
-          scale: 1.15,
-          duration: 150,
-          ease: 'Power2'
-        });
-        this.tweens.add({
-          targets: txt,
-          skewX: 0.05,
-          duration: 100,
-          yoyo: true
-        });
-      });
-      
-      container.on('pointerout', () => {
-        this.tweens.add({
-          targets: txt,
-          scale: 1,
-          duration: 150,
-          ease: 'Power2'
-        });
-      });
-
-      container.on('pointerdown', data.action);
       this._buttons.push(container);
     });
 
     // ESC button display
-   /* this._escButton = this.add.container(width / 2, height * 0.65 + (3 * 70));
-    const escText = this.add.text(0, 0, 'ESC', {
-      fontFamily: 'Roboto',
-      fontSize: '28px',
-      color: '#cc0000',
-      letterSpacing: 2
-    }).setOrigin(0.5);
-    this._escButton.add([escText]);
+    this._escButton = this._createGameOverStyleButton(
+      width / 2,
+      height * 0.65 + (3 * 76),
+      'ESC',
+      180,
+      46,
+      '12px',
+      { normal: 0x250000, hover: 0x550000, border: 0xcc0000 },
+      () => window.close(),
+    );
     this._escButton.setAlpha(0);
-
-    // ESC floating animation
-    this.tweens.add({
-      targets: this._escButton,
-      y: '-=5',
-      duration: 3200,
-      repeat: -1,
-      yoyo: true,
-      ease: 'Sine.easeInOut'
-    });
-
-    // ESC pulsing animation
-    this.tweens.add({
-      targets: escText,
-      alpha: { from: 0.6, to: 1 },
-      duration: 1500,
-      repeat: -1,
-      yoyo: true,
-      ease: 'Sine.easeInOut'
-    });*/
   }
 
   private createCreditsPanel() {
@@ -224,26 +189,16 @@ export default class Menu extends Phaser.Scene {
       ease: 'Sine.easeInOut'
     });
 
-    const closeBtn = this.add.text(0, 170, "CLOSE", { fontFamily: 'Roboto', fontSize: '20px', color: '#ffffff' })
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true })
-      .on('pointerdown', () => this.toggleCredits(false))
-      .on('pointerover', () => {
-        this.tweens.add({
-          targets: closeBtn,
-          scale: 1.15,
-          duration: 150,
-          ease: 'Power2'
-        });
-      })
-      .on('pointerout', () => {
-        this.tweens.add({
-          targets: closeBtn,
-          scale: 1,
-          duration: 150,
-          ease: 'Power2'
-        });
-      });
+    const closeBtn = this._createGameOverStyleButton(
+      0,
+      170,
+      'CLOSE',
+      220,
+      48,
+      '12px',
+      { normal: 0x1a1000, hover: 0x3a2800, border: 0xc8a800 },
+      () => this.toggleCredits(false),
+    );
 
     this._creditsPanel.add([bg, title, creditsText, logo, closeBtn]);
   }
@@ -262,8 +217,7 @@ export default class Menu extends Phaser.Scene {
         duration: 300,
         ease: 'Power2.easeOut'
       });
-      this._buttons.forEach(btn => btn.setAlpha(0.1).disableInteractive());
-      this._escButton.setAlpha(0.1).disableInteractive();
+      this._setMenuButtonsEnabled(false);
     } else {
       this.tweens.add({
         targets: this._creditsPanel,
@@ -273,8 +227,7 @@ export default class Menu extends Phaser.Scene {
         ease: 'Power2.easeIn',
         onComplete: () => {
           this._creditsPanel.setVisible(false);
-          this._buttons.forEach(btn => btn.setAlpha(1).setInteractive());
-          this._escButton.setAlpha(1).setInteractive();
+          this._setMenuButtonsEnabled(true);
         }
       });
     }
@@ -491,28 +444,111 @@ export default class Menu extends Phaser.Scene {
         });
       });
     
-    const closeBtn = this.add.text(0, 120, "CLOSE", { fontFamily: 'Roboto', fontSize: '24px', color: '#ffffff', fontStyle: 'bold' })
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true })
-      .on('pointerdown', () => this.toggleSettings(false))
-      .on('pointerover', () => {
-        this.tweens.add({
-          targets: closeBtn,
-          scale: 1.15,
-          duration: 150,
-          ease: 'Power2'
-        });
-      })
-      .on('pointerout', () => {
-        this.tweens.add({
-          targets: closeBtn,
-          scale: 1,
-          duration: 150,
-          ease: 'Power2'
-        });
-      });
+    const closeBtn = this._createGameOverStyleButton(
+      0,
+      120,
+      'CLOSE',
+      220,
+      48,
+      '12px',
+      { normal: 0x1a1000, hover: 0x3a2800, border: 0xc8a800 },
+      () => this.toggleSettings(false),
+    );
 
     this._settingsPanel.add([bg, title, volLabel, volMinus, volPlus, volValue, fullLabel, fullValue, closeBtn]);
+  }
+
+  private _createGameOverStyleButton(
+    x: number,
+    y: number,
+    label: string,
+    width: number,
+    height: number,
+    fontSize: string,
+    colors: { normal: number; hover: number; border: number },
+    onClick: () => void,
+  ): Phaser.GameObjects.Container {
+    const container = this.add.container(x, y);
+    const bx = -width / 2;
+    const by = -height / 2;
+
+    const hitbox = this.add
+      .rectangle(0, 0, width, height, 0x000000, 0)
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+
+    const bg = this.add.graphics();
+    this._drawGameOverStyleButton(bg, bx, by, width, height, colors.normal, colors.border, false);
+
+    const dec = this.add.graphics();
+    dec.lineStyle(1, colors.border, 0.3);
+    dec.strokeRect(bx + 5, by + 5, width - 10, height - 10);
+
+    const text = this.add.text(0, 0, label, {
+      fontFamily: "'Press Start 2P'",
+      fontSize,
+      color: '#ffffff',
+      stroke: '#000000',
+      strokeThickness: 3,
+    }).setOrigin(0.5);
+
+    container.add([hitbox, bg, dec, text]);
+    container.setData('inputTarget', hitbox);
+    container.setDepth(20);
+
+    hitbox.on('pointerover', () => {
+      this._drawGameOverStyleButton(bg, bx, by, width, height, colors.hover, colors.border, true);
+      text.setColor('#ffdd88');
+      this.tweens.add({
+        targets: text,
+        scaleX: 1.06,
+        scaleY: 1.06,
+        duration: 100,
+      });
+    });
+
+    hitbox.on('pointerout', () => {
+      this._drawGameOverStyleButton(bg, bx, by, width, height, colors.normal, colors.border, false);
+      text.setColor('#ffffff');
+      this.tweens.add({
+        targets: text,
+        scaleX: 1,
+        scaleY: 1,
+        duration: 100,
+      });
+    });
+
+    hitbox.on('pointerdown', () => {
+      this.tweens.add({
+        targets: text,
+        scaleX: 0.94,
+        scaleY: 0.94,
+        duration: 60,
+        yoyo: true,
+      });
+      this.time.delayedCall(150, () => onClick());
+    });
+
+    return container;
+  }
+
+  private _drawGameOverStyleButton(
+    g: Phaser.GameObjects.Graphics,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    fill: number,
+    border: number,
+    hover: boolean,
+  ): void {
+    g.clear();
+    g.fillStyle(fill, hover ? 0.95 : 0.8);
+    g.fillRoundedRect(x, y, width, height, 4);
+    g.lineStyle(2, border, 1);
+    g.strokeRoundedRect(x, y, width, height, 4);
+    g.fillStyle(0xffffff, 0.05);
+    g.fillRoundedRect(x + 2, y + 2, width - 4, height / 2 - 2, 3);
   }
 
   private toggleSettings(show: boolean) {
@@ -529,8 +565,7 @@ export default class Menu extends Phaser.Scene {
         duration: 300,
         ease: 'Power2.easeOut'
       });
-      this._buttons.forEach(btn => btn.setAlpha(0.1).disableInteractive());
-      this._escButton.setAlpha(0.1).disableInteractive();
+      this._setMenuButtonsEnabled(false);
     } else {
       this.tweens.add({
         targets: this._settingsPanel,
@@ -540,10 +575,36 @@ export default class Menu extends Phaser.Scene {
         ease: 'Power2.easeIn',
         onComplete: () => {
           this._settingsPanel.setVisible(false);
-          this._buttons.forEach(btn => btn.setAlpha(1).setInteractive());
-          this._escButton.setAlpha(1).setInteractive();
+          this._setMenuButtonsEnabled(true);
         }
       });
     }
+  }
+
+  private _setMenuButtonsEnabled(enabled: boolean): void {
+    const alpha = enabled ? 1 : 0.1;
+
+    this._buttons.forEach((btn) => {
+      btn.setAlpha(alpha);
+      this._setInputEnabled(btn, enabled);
+    });
+
+    this._escButton.setAlpha(alpha);
+    this._setInputEnabled(this._escButton, enabled);
+  }
+
+  private _setInputEnabled(target: Phaser.GameObjects.GameObject, enabled: boolean): void {
+    let inputTarget: Phaser.GameObjects.GameObject | null = target;
+
+    if (target instanceof Phaser.GameObjects.Container) {
+      const containerInputTarget = target.getData('inputTarget') as Phaser.GameObjects.GameObject | undefined;
+      inputTarget = containerInputTarget ?? target;
+    }
+
+    if (!inputTarget?.input) {
+      return;
+    }
+
+    inputTarget.input.enabled = enabled;
   }
 }
