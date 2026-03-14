@@ -1,6 +1,10 @@
 import Phaser from "phaser";
-import Merchant, { ISlotMercante } from "../game_components/Merchant";
+import Merchant, { IPerk, ISlotMercante } from "../game_components/Merchant";
 import Player from "../game_components/Player";
+import Perk from "../game_components/perks/Perk";
+import PerkAOE from "../game_components/perks/PerkAOE";
+import PerkCura from "../game_components/perks/PerkCura";
+import PerkDash from "../game_components/perks/PerkDash";
 
 export default class ShopUI extends Phaser.Scene {
 
@@ -11,6 +15,12 @@ export default class ShopUI extends Phaser.Scene {
   private _merchant: Merchant | null = null;
   private _player: Player | null = null;
   private _animeText: Phaser.GameObjects.Text | null = null;
+  private _playerInfoPanel: Phaser.GameObjects.Container | null = null;
+  private _playerInfoText: Phaser.GameObjects.Text | null = null;
+  private _slotSelectionUI: Phaser.GameObjects.Container | null = null;
+  private _pendingPurchasedPerk: Perk | null = null;
+  private _pendingPurchaseFinalize: (() => void) | null = null;
+  private _selectedShopSlot: ISlotMercante | null = null;
 
   constructor() {
     super({ key: "ShopUI" });
@@ -54,6 +64,7 @@ export default class ShopUI extends Phaser.Scene {
     this._creaTitolo(CX, CY);
     this._creaAnime(CX, CY);
     this._creaSeparatore(CX, CY);
+    this.createPlayerInfoPanel();
     this._creaSlots(CX, CY);
     this._creaBottoneChiudi(CX, CY);
     this._creaIstruzioni(CX, CY);
@@ -165,14 +176,14 @@ export default class ShopUI extends Phaser.Scene {
   // ================================
   private _creaTitolo(CX: number, CY: number): void {
     // Ombra
-    this.add.text(CX + 2, CY - 208, "✦  Bottega del Mercante  ✦", {
+    this.add.text(CX + 2, CY - 200, "✦  Bottega del Mercante  ✦", {
       fontFamily: "'Press Start 2P'",
       fontSize: "22px",
       color: "#2a1000",
     }).setOrigin(0.5);
 
     // Testo
-    this.add.text(CX, CY - 210, "✦  Bottega del Mercante  ✦", {
+    this.add.text(CX, CY - 202, "✦  Bottega del Mercante  ✦", {
       fontFamily: "'Press Start 2P'",
       fontSize: "22px",
       color: "#3d1a00",
@@ -234,6 +245,10 @@ export default class ShopUI extends Phaser.Scene {
     this._slots.forEach((slot, i) => {
       this._creaSlot(slot, i, CX - slotW / 2, startY + i * (slotH + gap), slotW, slotH);
     });
+
+    const firstAvailableSlot = this._slots.find((slot) => !slot.acquistato);
+    this._selectedShopSlot = firstAvailableSlot || this._slots[0] || null;
+    this._refreshPlayerInfoPanel();
   }
 
   private _creaSlot(
@@ -275,8 +290,11 @@ export default class ShopUI extends Phaser.Scene {
       strokeThickness: 2,
     }).setOrigin(0.5, 1);
 
+    const perkDisplayName = this._getStorePerkName(slot.perk);
+    const perkDisplayDescription = this._getStorePerkDescription(slot.perk);
+
     // Nome
-    this.add.text(x + 120, y + 22, slot.perk.nome, {
+    this.add.text(x + 120, y + 22, perkDisplayName, {
       fontFamily: "'Press Start 2P'",
       fontSize: "17px",
       color: slot.acquistato ? "#8a7050" : "#2a1000",
@@ -286,11 +304,29 @@ export default class ShopUI extends Phaser.Scene {
     });
 
     // Descrizione
-    this.add.text(x + 120, y + 58, slot.perk.descrizione, {
+    this.add.text(x + 120, y + 58, perkDisplayDescription, {
       fontFamily: "'Press Start 2P'",
       fontSize: "11px",
       color: slot.acquistato ? "#9a8060" : "#4a2800",
       wordWrap: { width: w - 310 },
+    });
+
+    const slotHotspot = this.add.rectangle(
+      x + w / 2,
+      y + h / 2,
+      w,
+      h,
+      0x000000,
+      0.001,
+    );
+    slotHotspot.setInteractive({ useHandCursor: true });
+    slotHotspot.on("pointerover", () => {
+      this._selectedShopSlot = slot;
+      this._refreshPlayerInfoPanel();
+    });
+    slotHotspot.on("pointerdown", () => {
+      this._selectedShopSlot = slot;
+      this._refreshPlayerInfoPanel();
     });
 
     // ——— BOTTONE ———
@@ -321,6 +357,29 @@ export default class ShopUI extends Phaser.Scene {
       btnBg.fillRoundedRect(btnX, btnY, btnW, btnH, 8);
       btnBg.lineStyle(2, puoAcquistare ? 0x9b6a3b : 0x5a4030, 1);
       btnBg.strokeRoundedRect(btnX, btnY, btnW, btnH, 8);
+
+      const finalizePurchaseVisuals = (): void => {
+        this._animeText?.setText(`${this._player!.anime}`);
+
+        btnTesto.disableInteractive();
+        btnBg.clear();
+        btnBg.fillStyle(0x1a4a1a, 1);
+        btnBg.fillRoundedRect(btnX, btnY, btnW, btnH, 8);
+        btnBg.lineStyle(2, 0x44aa44, 1);
+        btnBg.strokeRoundedRect(btnX, btnY, btnW, btnH, 8);
+        btnTesto.setText("✓  Acquistato");
+        btnTesto.setColor("#55ee88");
+        btnTesto.setFontSize("12px");
+        btnTesto.setX(btnX + btnW / 2);
+
+        slotBg.clear();
+        slotBg.fillStyle(acquistatoColor, 0.25);
+        slotBg.fillRoundedRect(x, y, w, h, 8);
+        slotBg.lineStyle(2, 0x7a6040, 0.7);
+        slotBg.strokeRoundedRect(x, y, w, h, 8);
+
+        this._refreshPlayerInfoPanel();
+      };
 
       const btnTesto = this.add.text(
         btnX + btnW / 2,
@@ -354,6 +413,11 @@ export default class ShopUI extends Phaser.Scene {
       });
 
       btnTesto.on("pointerdown", () => {
+        if (this._slotSelectionUI) {
+          this._mostraMessaggio("✦ Seleziona prima lo slot Q o E ✦", "#8b0000");
+          return;
+        }
+
         // Check al momento del click
         if (this._player!.anime < slot.costoAttuale) {
           this._mostraMessaggio("✦ Anime insufficienti! ✦", "#8b0000");
@@ -368,33 +432,268 @@ export default class ShopUI extends Phaser.Scene {
           return;
         }
 
-        this._merchant!.executePurchase(this._player!, index);
+        const purchasedPerk = this._merchant!.executePurchase(
+          this._player!,
+          index,
+          false,
+        );
 
-        // Aggiorna anime
-        this._animeText?.setText(`${this._player!.anime}`);
+        if (!slot.acquistato) {
+          this._mostraMessaggio("✦ Acquisto non riuscito ✦", "#8b0000");
+          return;
+        }
 
-        // Bottone → verde
-        btnTesto.disableInteractive();
-        btnBg.clear();
-        btnBg.fillStyle(0x1a4a1a, 1);
-        btnBg.fillRoundedRect(btnX, btnY, btnW, btnH, 8);
-        btnBg.lineStyle(2, 0x44aa44, 1);
-        btnBg.strokeRoundedRect(btnX, btnY, btnW, btnH, 8);
-        btnTesto.setText("✓  Acquistato");
-        btnTesto.setColor("#55ee88");
-        btnTesto.setFontSize("12px");
-        btnTesto.setX(btnX + btnW / 2);
+        if (slot.perk.tipo === "temporaneo") {
+          if (!purchasedPerk) {
+            this._mostraMessaggio("✦ Perk non disponibile ✦", "#8b0000");
+            return;
+          }
 
-        // Sbiadisci sfondo slot
-        slotBg.clear();
-        slotBg.fillStyle(acquistatoColor, 0.25);
-        slotBg.fillRoundedRect(x, y, w, h, 8);
-        slotBg.lineStyle(2, 0x7a6040, 0.7);
-        slotBg.strokeRoundedRect(x, y, w, h, 8);
+          btnTesto.disableInteractive();
+          btnTesto.setText("Scegli slot");
+          btnTesto.setColor("#e8c48a");
+          btnTesto.setFontSize("12px");
 
-        this._mostraMessaggio(`✦ ${slot.perk.nome} acquistato! ✦`, "#1a6a00");
+          this._pendingPurchaseFinalize = () => {
+            finalizePurchaseVisuals();
+            this._mostraMessaggio(
+              `✦ ${perkDisplayName} equipaggiato con successo! ✦`,
+              "#1a6a00",
+            );
+          };
+
+          this.handlePerkPurchase(purchasedPerk);
+          return;
+        }
+
+        finalizePurchaseVisuals();
+
+        this._mostraMessaggio(`✦ ${perkDisplayName} acquistato! ✦`, "#1a6a00");
       });
     }
+  }
+
+  /**
+   * Creiamo un pannello persistente separato dai singoli slot per evitare che i
+   * repaint degli elementi acquistabili invalidino il contesto statistico.
+   */
+  private createPlayerInfoPanel(): void {
+    const camera = this.cameras.main;
+    const panelW = 280;
+    const panelH = 420;
+    const panelX = Math.min(
+      camera.width - panelW / 2 - 18,
+      camera.centerX + 560,
+    );
+    const panelY = camera.centerY;
+
+    this._playerInfoPanel?.destroy(true);
+
+    const background = this.add.rectangle(
+      panelX,
+      panelY,
+      panelW,
+      panelH,
+      0x6a3a10,
+      0.34,
+    );
+    background.setStrokeStyle(2, 0x8b5a2b, 0.9);
+
+    const title = this.add.text(panelX, panelY - panelH / 2 + 20, "Dati Eroe", {
+      fontFamily: "'Press Start 2P'",
+      fontSize: "13px",
+      color: "#2a1000",
+      stroke: "#e2b978",
+      strokeThickness: 2,
+    }).setOrigin(0.5, 0);
+
+    this._playerInfoText = this.add.text(
+      panelX - panelW / 2 + 14,
+      panelY - panelH / 2 + 58,
+      "",
+      {
+        fontFamily: "'Press Start 2P'",
+        fontSize: "10px",
+        color: "#dfdfdf",
+        lineSpacing: 9,
+        wordWrap: { width: panelW - 28 },
+      },
+    );
+
+    this._playerInfoPanel = this.add.container(0, 0, [
+      background,
+      title,
+      this._playerInfoText,
+    ]);
+
+    this._refreshPlayerInfoPanel();
+  }
+
+  private _refreshPlayerInfoPanel(): void {
+    if (!this._player || !this._playerInfoText) {
+      return;
+    }
+
+    const lines = [
+      "STATS",
+      `HP: ${this._player.getHp}/${this._player.getHpMax()}`,
+      `Velocità: ${Math.floor(this._player.speed)}`,
+      `Danno base: ${this._player.getAtk()}`,
+      "",
+      "PERK ATTIVI",
+      `Q: ${this._describePerk(this._player.perkSlotQ)}`,
+      `E: ${this._describePerk(this._player.perkSlotE)}`,
+    ];
+
+    const comparisonLines = this._buildShopComparisonLines();
+    this._playerInfoText.setText(lines.concat(comparisonLines).join("\n"));
+  }
+
+  /**
+   * Mostriamo il confronto nello stesso pannello del player per ridurre i salti
+   * visivi e consentire una decisione rapida mentre il cursore scorre gli slot.
+   */
+  private _buildShopComparisonLines(): string[] {
+    if (!this._selectedShopSlot) {
+      return [
+        "",
+        "PERK IN VENDITA",
+        "Passa il mouse su uno slot",
+      ];
+    }
+
+    const salePerk = this._selectedShopSlot.perk;
+    const lines = [
+      "",
+      "PERK IN VENDITA",
+      `${this._getStorePerkName(salePerk)} \n\t${this._describeStorePerkStats(salePerk)}`,
+    ];
+
+    return lines;
+  }
+
+  private _describeStorePerkStats(perk: IPerk): string {
+    if (!this._merchant) {
+      return perk.descrizione;
+    }
+
+    return this._merchant.getPerkStatsText(perk);
+  }
+
+  private _getStorePerkName(perk: IPerk): string {
+    if (!this._merchant) {
+      return perk.nome;
+    }
+
+    return this._merchant.getPerkDisplayName(perk);
+  }
+
+  private _getStorePerkDescription(perk: IPerk): string {
+    if (!this._merchant) {
+      return perk.descrizione;
+    }
+
+    return this._merchant.getPerkDisplayDescription(perk);
+  }
+
+  private _describePerk(perk: Perk | null): string {
+    if (!perk) {
+      return "Vuoto";
+    }
+
+    if (perk instanceof PerkDash) {
+      return `Scatto Ombra \n\tPower = ${perk.dashPower} \n\tCooldown = ${perk.cooldown}ms`;
+    }
+
+    if (perk instanceof PerkAOE) {
+      return `Levatevi Di Torno \n\tDamage = ${perk.damage} \n\tRaggio = ${perk.radius}`;
+    }
+
+    if (perk instanceof PerkCura) {
+      const healPercent = Math.floor(perk.healPercent * 100);
+      return `Cura Rituale \n\tHP curati = ${healPercent}% \n\tCooldown = ${perk.delayMs}ms`;
+    }
+
+    return `${perk.constructor.name} | cd ${perk.delayMs}ms`;
+  }
+
+  /**
+   * Separiamo la scelta Q/E dall'atto di pagamento per impedire overwrite
+   * involontari durante fasi ad alta pressione cognitiva.
+   */
+  private handlePerkPurchase(selectedPerk: Perk): void {
+    if (!this._player) {
+      return;
+    }
+
+    this._pendingPurchasedPerk = selectedPerk;
+    this._slotSelectionUI?.destroy(true);
+
+    const baseX = this.cameras.main.centerX;
+    const baseY = this.cameras.main.centerY + 150;
+    const slotContainer = this.add.container(0, 0);
+
+    const hint = this.add.text(baseX, baseY - 44, "Seleziona slot perk", {
+      fontFamily: "'Press Start 2P'",
+      fontSize: "11px",
+      color: "#3d1a00",
+      stroke: "#e2b978",
+      strokeThickness: 2,
+    }).setOrigin(0.5);
+
+    slotContainer.add(hint);
+
+    const createSlotButton = (
+      label: "Q" | "E",
+      offsetX: number,
+    ): void => {
+      const button = this.add.rectangle(
+        baseX + offsetX,
+        baseY,
+        80,
+        52,
+        0x3d1a00,
+        0.95,
+      );
+      button.setStrokeStyle(2, 0x9b6a3b, 1);
+      button.setInteractive({ useHandCursor: true });
+
+      const text = this.add.text(baseX + offsetX, baseY, label, {
+        fontFamily: "'Press Start 2P'",
+        fontSize: "22px",
+        color: "#e8c48a",
+      }).setOrigin(0.5);
+
+      const onSelect = (): void => {
+        if (!this._pendingPurchasedPerk || !this._player) {
+          return;
+        }
+
+        this._player.setPerk(label, this._pendingPurchasedPerk);
+        this._pendingPurchasedPerk = null;
+        this._slotSelectionUI?.destroy(true);
+        this._slotSelectionUI = null;
+
+        if (this._pendingPurchaseFinalize) {
+          this._pendingPurchaseFinalize();
+          this._pendingPurchaseFinalize = null;
+        }
+
+        this._refreshPlayerInfoPanel();
+      };
+
+      button.on("pointerdown", onSelect);
+      text.setInteractive({ useHandCursor: true });
+      text.on("pointerdown", onSelect);
+
+      slotContainer.add(button);
+      slotContainer.add(text);
+    };
+
+    createSlotButton("Q", -56);
+    createSlotButton("E", 56);
+
+    this._slotSelectionUI = slotContainer;
   }
 
   // ================================
@@ -436,11 +735,16 @@ export default class ShopUI extends Phaser.Scene {
   // ISTRUZIONI
   // ================================
   private _creaIstruzioni(CX: number, CY: number): void {
-    this.add.text(CX, CY + 208, "— clicca sul prezzo per acquistare —", {
+    this.add.text(
+      CX,
+      CY + 180,
+      "— passa sugli slot, poi compra e scegli Q/E —",
+      {
       fontFamily: "'Press Start 2P'",
       fontSize: "10px",
       color: "#7a5a30",
-    }).setOrigin(0.5);
+      },
+    ).setOrigin(0.5);
   }
 
   // ================================
@@ -487,13 +791,25 @@ export default class ShopUI extends Phaser.Scene {
       this.tweens.add({ targets: testo, scaleX: 1, scaleY: 1, duration: 80 });
     });
 
-    testo.on("pointerdown", () => this._closeShop());
+    testo.on("pointerdown", () => {
+      if (this._slotSelectionUI) {
+        this._mostraMessaggio("✦ Completa la scelta slot prima di uscire ✦", "#8b0000");
+        return;
+      }
+
+      this._closeShop();
+    });
   }
 
   // ================================
   // CHIUDI
   // ================================
   private _closeShop(): void {
+    this._slotSelectionUI?.destroy(true);
+    this._slotSelectionUI = null;
+    this._pendingPurchasedPerk = null;
+    this._pendingPurchaseFinalize = null;
+
     this.tweens.add({
       targets: this.cameras.main,
       alpha: 0,
