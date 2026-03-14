@@ -115,7 +115,7 @@ export default class Enemy extends Actor {
         this._isDead = true;
         this.setVelocity(0, 0);
         this.body.enable = false;
-        this.scene.events.emit("update-score", this._soulsValue);
+        this.scene.events.emit("score-delta", this._soulsValue);
         this.startDeath();
     }
 

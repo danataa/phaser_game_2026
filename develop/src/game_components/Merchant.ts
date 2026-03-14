@@ -81,8 +81,6 @@ export default class Merchant extends Actor {
     { id: "speed_up", nome: "+Velocità",      descrizione: "Aumenta la velocità",           costoBase: 50, valoreBase: 50, tipo: "permanente", categoria: "speed"   },
     { id: "scatto",   nome: "Scatto",         descrizione: "Scatta nella direzione",        costoBase: 50, valoreBase: 1,  tipo: "temporaneo", categoria: "generic" },
     { id: "area",     nome: "Attacco area",   descrizione: "Danni a tutti i nemici vicini", costoBase: 70, valoreBase: 20, tipo: "temporaneo", categoria: "generic" },
-  // scudo temporaneamente disabilitato
-  //{ id: "scudo",    nome: "Scudo",          descrizione: "Assorbe il prossimo colpo",     costoBase: 80, valoreBase: 1,  tipo: "temporaneo", categoria: "generic" },
   ];
 
   private _slotAttivi: ISlotMercante[] = [];
@@ -229,6 +227,7 @@ export default class Merchant extends Actor {
     }
 
     this._scena.events.emit("anime-cambiate", player.anime);
+    this._scena.events.emit("update-score", player.anime);
     console.log(`✅ Acquistato: ${slot.perk.nome} — anime rimaste: ${player.anime}`);
     return temporaryPerk;
   }
@@ -383,6 +382,10 @@ export default class Merchant extends Actor {
     return null;
   }
 
+  /**
+   * Value scaling keeps temporary perks relevant in later waves without
+   * exploding cooldown-based effects, preserving room for player mastery.
+   */
   private _calcolaValorePerk(perk: IPerk): number {
     return Math.max(1, Math.floor(perk.valoreBase * this._moltiplicatoreValore));
   }
@@ -435,6 +438,7 @@ export default class Merchant extends Actor {
         console.log(`🔧 Upgrade generico: ${valore}`);
     }
     this._scena.events.emit("vita-cambiata", player.getHp, player.getHpMax());
+    this._scena.events.emit("update-hp", player.getHp, player.getHpMax());
   }
 
   /** Apre lo shop dall'esterno — es. fine ondata */
@@ -553,6 +557,10 @@ export default class Merchant extends Actor {
     return Phaser.Utils.Array.Shuffle([...this._poolPerk]).slice(0, quantita);
   }
 
+  /**
+   * Cost scaling ties economy to wave index so buying power remains a strategic
+   * tradeoff instead of a guaranteed purchase after each combat.
+   */
   private _calcolaCosto(perk: IPerk): number {
     return Math.floor(perk.costoBase * this._moltiplicatoreCosto);
   }
@@ -560,6 +568,34 @@ export default class Merchant extends Actor {
   // ================================
   // GETTER
   // ================================
+  public get costScalePerWave(): number {
+    return Merchant.SCALA_COSTO_PER_ONDATA;
+  }
+
+  public get valueScalePerWave(): number {
+    return Merchant.SCALA_VALORE_PER_ONDATA;
+  }
+
+  public get currentCostMultiplier(): number {
+    return this._moltiplicatoreCosto;
+  }
+
+  public get currentValueMultiplier(): number {
+    return this._moltiplicatoreValore;
+  }
+
+  public get healCooldownMs(): number {
+    return Merchant.CURA_COOLDOWN_MS;
+  }
+
+  public get dashCooldownMs(): number {
+    return Merchant.DASH_COOLDOWN_MS;
+  }
+
+  public get areaCooldownMs(): number {
+    return Merchant.AREA_COOLDOWN_MS;
+  }
+
   public get slotAttivi(): ISlotMercante[] { return this._slotAttivi; }
   public get ondataCorrente(): number { return this._ondataCorrente; }
   public get shopAperto(): boolean { return this._shopAperto; }

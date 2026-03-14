@@ -65,6 +65,10 @@ export default class GamePlay extends Phaser.Scene {
         this._enemyGroup = this.physics.add.group({ runChildUpdate: true });
         this._waveManager = new WaveManager(this, this._enemyGroup);
 
+        this.registry.set("current-score", this._player.anime);
+        this.registry.set("final-score", this._player.anime);
+
+        this.events.on("score-delta", this._onScoreDelta, this);
         this.events.on("update-score", this._onUpdateScore, this);
         this.events.on("wave-complete", this._onWaveComplete, this);
         this.events.once(Phaser.Scenes.Events.SHUTDOWN, this._onShutdown, this);
@@ -78,8 +82,17 @@ export default class GamePlay extends Phaser.Scene {
         this._waveManager?.update();
     }
 
-    private _onUpdateScore(soulsValue: number): void {
+    private _onScoreDelta(soulsValue: number): void {
         this._player.raccogliAnime(soulsValue);
+    }
+
+    /**
+     * The registry keeps the latest score across scenes so GameOver can read a
+     * stable final value without depending on GamePlay object references.
+     */
+    private _onUpdateScore(currentScore: number): void {
+        this.registry.set("current-score", currentScore);
+        this.registry.set("final-score", currentScore);
     }
 
     /**
@@ -99,6 +112,9 @@ export default class GamePlay extends Phaser.Scene {
     }
 
     private _onShutdown(): void {
+        this.registry.set("final-score", this._player.anime);
+        this.registry.set("current-score", this._player.anime);
+        this.events.off("score-delta", this._onScoreDelta, this);
         this.events.off("update-score", this._onUpdateScore, this);
         this.events.off("wave-complete", this._onWaveComplete, this);
         this._waveManager.stop();

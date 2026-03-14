@@ -10,6 +10,7 @@ type EnemyType = "Zombie" | "Skeleton" | "Demon";
 
 // Gestisce le ondate di nemici.
 export default class WaveManager {
+    // --- Wave Composition Configuration ---
     private static readonly ENEMY_WEIGHTS: Readonly<Record<EnemyType, number>> =
         {
             Zombie: 10,
@@ -26,6 +27,7 @@ export default class WaveManager {
         [3, { Zombie: 60, Skeleton: 0, Demon: 40 }],
     ]);
 
+    // --- Runtime Difficulty Configuration ---
     private readonly _spawnIntervalMs: number = 1500;
     private readonly _spawnSafetyDistancePx: number = 100;
     private readonly _basePoints: number = 60;
@@ -58,6 +60,26 @@ export default class WaveManager {
 
     get currentWaveBudget(): number {
         return this._currentWaveBudget;
+    }
+
+    get spawnIntervalMs(): number {
+        return this._spawnIntervalMs;
+    }
+
+    get spawnSafetyDistancePx(): number {
+        return this._spawnSafetyDistancePx;
+    }
+
+    get basePoints(): number {
+        return this._basePoints;
+    }
+
+    get difficultyMultiplier(): number {
+        return this._difficultyMultiplier;
+    }
+
+    get enemyWeights(): Readonly<Record<EnemyType, number>> {
+        return WaveManager.ENEMY_WEIGHTS;
     }
 
     get spawnedEnemiesCount(): number {
@@ -139,6 +161,10 @@ export default class WaveManager {
         this._spawnQueue = [];
     }
 
+    /**
+     * Linear budget growth keeps early waves readable while guaranteeing that
+     * each new wave adds enough spending power to introduce heavier enemies.
+     */
     private _calculateWaveBudget(waveNumber: number): number {
         return this._basePoints + waveNumber * this._difficultyMultiplier;
     }

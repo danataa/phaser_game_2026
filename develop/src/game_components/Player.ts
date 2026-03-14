@@ -41,7 +41,7 @@ export default class Player extends Actor {
         super(scene, x, y, "player_idle");
         this._createAnimations();
         this.setSpeed(500);
-        this.setHp(this._maxHp);
+        this.setHp(this._hpMax);
 
         // Registra i tasti WASD per il movimento
         const kb = scene.input.keyboard!;
@@ -54,8 +54,6 @@ export default class Player extends Actor {
             E: kb.addKey(Phaser.Input.Keyboard.KeyCodes.E),
         };
 
-        // this.anims.play("idle", true);
-
         // Hitbox più piccola dello sprite per collisioni più precise
         this.setSize(32, 64);
         this.setOffset(16, 64);
@@ -65,10 +63,32 @@ export default class Player extends Actor {
         this.once(Phaser.GameObjects.Events.DESTROY, () => {
             this.scene.input.off(Phaser.Input.Events.POINTER_DOWN, this._onPointerDown, this);
         });
+
+        this._emitHpUpdate();
     }
 
     get maxHp(): number {
         return this._maxHp;
+    }
+
+    get maxHpConfigured(): number {
+        return this._maxHp;
+    }
+
+    get dashOverlayAlpha(): number {
+        return this._dashOverlayAlpha;
+    }
+
+    get dashOverlayTint(): number {
+        return this._dashOverlayTint;
+    }
+
+    get baseAttackDamage(): number {
+        return this._baseAttackDamage;
+    }
+
+    get baseAttackRange(): number {
+        return this._baseAttackRange;
     }
 
     get perkSlotQ(): Perk | null {
@@ -81,10 +101,12 @@ export default class Player extends Actor {
 
     setPerkSlotQ(perk: Perk | null): void {
         this._perkSlotQ = perk;
+        this.scene.events.emit("perk-equipped", "Q", perk);
     }
 
     setPerkSlotE(perk: Perk | null): void {
         this._perkSlotE = perk;
+        this.scene.events.emit("perk-equipped", "E", perk);
     }
 
     setPerk(slot: "Q" | "E", perk: Perk | null): void {
@@ -102,23 +124,40 @@ export default class Player extends Actor {
     equipPerk(perk: Perk): "Q" | "E" {
         if (!this._perkSlotQ) {
             this._perkSlotQ = perk;
+            this.scene.events.emit("perk-equipped", "Q", perk);
             return "Q";
         }
 
         if (!this._perkSlotE) {
             this._perkSlotE = perk;
+            this.scene.events.emit("perk-equipped", "E", perk);
             return "E";
         }
 
         this._perkSlotQ = perk;
+        this.scene.events.emit("perk-equipped", "Q", perk);
         return "Q";
     }
 
     healByPercent(healPercent: number): void {
         const clampedPercent = Phaser.Math.Clamp(healPercent, 0, 1);
-        const healAmount = Math.ceil(this._maxHp * clampedPercent);
-        const nextHp = Math.min(this.getHp + healAmount, this._maxHp);
+        const healAmount = Math.ceil(this._hpMax * clampedPercent);
+        const nextHp = Math.min(this.getHp + healAmount, this._hpMax);
         this.setHp(nextHp);
+        this._emitHpUpdate();
+    }
+
+    /**
+     * HUD and combat logics consume hp changes from a single event channel to
+     * avoid diverging state between healing perks and enemy damage ticks.
+     */
+    takeDamage(amount: number): void {
+        super.takeDamage(amount);
+        if (this.getHp < 0) {
+            this.setHp(0);
+        }
+
+        this._emitHpUpdate();
     }
 
     get isDashing(): boolean {
@@ -449,6 +488,11 @@ export default class Player extends Actor {
         }
     }
 
+    private _emitHpUpdate(): void {
+        this.scene.events.emit("vita-cambiata", this.getHp, this._hpMax);
+        this.scene.events.emit("update-hp", this.getHp, this._hpMax);
+    }
+
     get anime(): number {
         return this._anime;
     }
@@ -469,6 +513,7 @@ export default class Player extends Actor {
         const nextAnime = Math.max(0, this._anime + Math.max(0, amount));
         this._anime = nextAnime;
         this.scene.events.emit("anime-cambiate", this._anime);
+        this.scene.events.emit("update-score", this._anime);
     }
 
     spendi(amount: number): boolean {
@@ -480,6 +525,7 @@ export default class Player extends Actor {
 
         this._anime -= safeAmount;
         this.scene.events.emit("anime-cambiate", this._anime);
+        this.scene.events.emit("update-score", this._anime);
         return true;
     }
 
@@ -491,7 +537,7 @@ export default class Player extends Actor {
         const delta = Math.max(0, amount);
         this._hpMax += delta;
         this.setHp(Math.min(this.getHp + delta, this._hpMax));
-        this.scene.events.emit("vita-cambiata", this.getHp, this._hpMax);
+        this._emitHpUpdate();
     }
 
     aumentaAtk(amountPercent: number): void {
