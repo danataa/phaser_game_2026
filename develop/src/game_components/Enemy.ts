@@ -14,6 +14,12 @@ export default class Enemy extends Actor {
     protected _isDead: boolean = false;
     protected _soulsValue: number = 0;
     protected _pathRecalculateDelay: number = 1500;
+    private _hpBarBackground: Phaser.GameObjects.Rectangle | null = null;
+    private _hpBar: Phaser.GameObjects.Rectangle | null = null;
+    private _hpBarWidth: number = 38;
+    private _hpBarHeight: number = 5;
+    private _hpBarOffsetY: number = 14;
+    private _maxHpSnapshot: number = 0;
 
     // --- Pathfinding state ---
     protected _mapManager: MapManager | null;
@@ -32,6 +38,7 @@ export default class Enemy extends Actor {
         this._pathTimer = 0;
         this._target = target;
         (this.body as Phaser.Physics.Arcade.Body).setCollideWorldBounds(true);
+        this._createHealthBar();
 
         // Listener per distruggere il nemico al termine dell'animazione di morte
         this.on(Phaser.Animations.Events.ANIMATION_COMPLETE, (anim: Phaser.Animations.Animation) => {
@@ -39,6 +46,8 @@ export default class Enemy extends Actor {
                 this.destroy();
             }
         });
+
+        this.once(Phaser.GameObjects.Events.DESTROY, this._destroyHealthBar, this);
     }
 
     // --- Getters ---
@@ -70,10 +79,21 @@ export default class Enemy extends Actor {
         this.moveToPlayer();
     }
 
+    preUpdate(time: number, delta: number): void {
+        super.preUpdate(time, delta);
+        this._syncHealthBar();
+    }
+
     // --- Combat & State Logic ---
 
     setDamage(value: number): void {
         this._damage = value;
+    }
+
+    setHp(value: number): void {
+        super.setHp(value);
+        this._maxHpSnapshot = Math.max(this._maxHpSnapshot, Math.max(0, value));
+        this._syncHealthBar();
     }
 
     setMapManager(mapManager: MapManager): void {
@@ -90,6 +110,7 @@ export default class Enemy extends Actor {
     /** Applica danno e gestisce la transizione di morte del nemico. */
     takeDamage(amount: number): void {
         super.takeDamage(amount);
+        this._syncHealthBar();
 
         if (!this._isDead && this.active) {
             this.setTint(0xff0000);
@@ -113,10 +134,78 @@ export default class Enemy extends Actor {
     private _handleDeath(): void {
         // Cuore della logica di morte condivisa: stop, disable body, score, death animation.
         this._isDead = true;
+        this._hideHealthBar();
         this.setVelocity(0, 0);
         this.body.enable = false;
         this.scene.events.emit("score-delta", this._soulsValue);
         this.startDeath();
+    }
+
+    /**
+     * A compact hp bar above enemies gives immediate combat readability without
+     * forcing players to inspect sprite-specific hit reactions.
+     */
+    private _createHealthBar(): void {
+        this._hpBarBackground = this.scene.add.rectangle(
+            this.x,
+            this.y,
+            this._hpBarWidth,
+            this._hpBarHeight,
+            0x7f1111,
+            0.95,
+        );
+        this._hpBarBackground.setOrigin(0.5, 0.5);
+        this._hpBarBackground.setDepth(20);
+
+        this._hpBar = this.scene.add.rectangle(
+            this.x,
+            this.y,
+            this._hpBarWidth,
+            this._hpBarHeight,
+            0x3cc35b,
+            1,
+        );
+        this._hpBar.setOrigin(0, 0.5);
+        this._hpBar.setDepth(21);
+    }
+
+    private _syncHealthBar(): void {
+        if (!this._hpBarBackground || !this._hpBar) {
+            return;
+        }
+
+        const topY = this.y - this.displayHeight * 0.5 - this._hpBarOffsetY;
+        this._hpBarBackground.setPosition(this.x, topY);
+
+        const leftX = this.x - this._hpBarWidth * 0.5;
+        this._hpBar.setPosition(leftX, topY);
+
+        const hpRatio = Phaser.Math.Clamp(
+            this.getHp / Math.max(1, this._maxHpSnapshot),
+            0,
+            1,
+        );
+
+        this._hpBar.width = this._hpBarWidth * hpRatio;
+        this._hpBarBackground.visible = this.active && !this._isDead;
+        this._hpBar.visible = this.active && !this._isDead;
+    }
+
+    private _hideHealthBar(): void {
+        if (this._hpBarBackground) {
+            this._hpBarBackground.visible = false;
+        }
+
+        if (this._hpBar) {
+            this._hpBar.visible = false;
+        }
+    }
+
+    private _destroyHealthBar(): void {
+        this._hpBarBackground?.destroy();
+        this._hpBarBackground = null;
+        this._hpBar?.destroy();
+        this._hpBar = null;
     }
 
     // --- Pathfinding ---

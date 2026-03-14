@@ -35,6 +35,11 @@ export default class GamePlay extends Phaser.Scene {
     }
 
     create(): void {
+        if (!this.scene.isActive("Hud")) {
+            this.scene.launch("Hud");
+        }
+        this.scene.bringToTop("Hud");
+
         this._mapManager = new MapManager(this);
 
         this._player = new Player(
@@ -112,6 +117,10 @@ export default class GamePlay extends Phaser.Scene {
     }
 
     private _onShutdown(): void {
+        if (this.scene.isActive("Hud")) {
+            this.scene.stop("Hud");
+        }
+
         this.registry.set("final-score", this._player.anime);
         this.registry.set("current-score", this._player.anime);
         this.events.off("score-delta", this._onScoreDelta, this);
