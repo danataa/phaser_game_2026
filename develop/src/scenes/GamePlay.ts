@@ -31,6 +31,14 @@ export default class GamePlay extends Phaser.Scene {
     super({ key: "GamePlay" });
   }
 
+  init(): void {
+    /**
+     * Phaser restarts reuse the same scene instance, therefore transient flags
+     * must be reset here to guarantee wave 1 boot behavior after GameOver.
+     */
+    this._resetRuntimeState();
+  }
+
   get player(): Player {
     return this._player;
   }
@@ -157,6 +165,14 @@ export default class GamePlay extends Phaser.Scene {
 
   private _onScoreDelta(soulsValue: number): void {
     this._player.raccogliAnime(soulsValue);
+  }
+
+  private _resetRuntimeState(): void {
+    this._cancelInterWaveTimer();
+    this._isInterWaveActive = false;
+    this._interWaveEndsAtMs = 0;
+    this._pendingNextWave = 1;
+    this._isPlayerNearMerchant = false;
   }
 
   private _onUpdateScore(currentScore: number): void {
