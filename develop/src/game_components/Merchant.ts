@@ -88,6 +88,7 @@ export default class Merchant extends Actor {
   private _moltiplicatoreValore: number = 1;
   private _ondataCorrente: number = 1;
   private _shopAperto: boolean = false;
+  private _interactionEnabled: boolean = true;
   private _raggioInterazione: number = 300;
   private _tastoInterazione: Phaser.Input.Keyboard.Key;
   private _etichetta: Phaser.GameObjects.Text;
@@ -108,7 +109,7 @@ export default class Merchant extends Actor {
     this.setScale(5);
     this.setY(this.y - 175); // Alza il PNG visivamente
 
-    // Hitbox più piccola centrata sul personaggio
+    // Hitbox iniziale del mercante.
     this.setSize(30, 73);
     this.setOffset(110, 95);
 
@@ -153,9 +154,20 @@ export default class Merchant extends Actor {
   // ================================
   public update(playerX: number, playerY: number): void {
     if (this._shopAperto) return;
-    this._controllaProssimita(playerX, playerY);
+    if (this._interactionEnabled) {
+      this._controllaProssimita(playerX, playerY);
+    } else {
+      this._prompt.setVisible(false);
+    }
     this._etichetta.setPosition(this.x, this.y - 90);
     this._prompt.setPosition(this.x, this.y - 120);
+  }
+
+  public setInteractionEnabled(enabled: boolean): void {
+    this._interactionEnabled = enabled;
+    if (!enabled) {
+      this._prompt.setVisible(false);
+    }
   }
 
   // ================================

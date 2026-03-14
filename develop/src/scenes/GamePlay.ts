@@ -8,11 +8,22 @@ import PerkDash from "../game_components/perks/PerkDash";
 
 // Scena principale di gioco: crea la mappa e il player.
 export default class GamePlay extends Phaser.Scene {
+    private static readonly INTER_WAVE_MAX_MS: number = 60000;
+    private static readonly SHOP_INTERACTION_RADIUS_PX: number = 150;
+
     private _player: Player;
     private _merchant: Merchant;
     private _waveManager: WaveManager;
     private _mapManager: MapManager;
     private _enemyGroup: Phaser.Physics.Arcade.Group;
+
+    private _interWaveTimer: Phaser.Time.TimerEvent | null = null;
+    private _interWaveEndsAtMs: number = 0;
+    private _isInterWaveActive: boolean = false;
+    private _pendingNextWave: number = 1;
+    private _isPlayerNearMerchant: boolean = false;
+    private _shopInteractKey: Phaser.Input.Keyboard.Key | null = null;
+    private _skipInterWaveKey: Phaser.Input.Keyboard.Key | null = null;
 
     constructor() {
         super({ key: "GamePlay" });
@@ -32,6 +43,26 @@ export default class GamePlay extends Phaser.Scene {
 
     get mapManager(): MapManager {
         return this._mapManager;
+    }
+
+    get isInterWaveActive(): boolean {
+        return this._isInterWaveActive;
+    }
+
+    get interWaveRemainingMs(): number {
+        if (!this._isInterWaveActive) {
+            return 0;
+        }
+
+        return Math.max(0, this._interWaveEndsAtMs - this.time.now);
+    }
+
+    get canOpenShopAtMerchant(): boolean {
+        return (
+            this._isInterWaveActive &&
+            this._isPlayerNearMerchant &&
+            !this._merchant?.shopAperto
+        );
     }
 
     create(): void {
@@ -64,11 +95,22 @@ export default class GamePlay extends Phaser.Scene {
             this._mapManager.widthInPixels / 2,
             this._mapManager.heightInPixels / 2,
         );
+        this._merchant.setInteractionEnabled(false);
         this._mapManager.addCollider(this._merchant);
         this.physics.add.collider(this._player, this._merchant);
 
         this._enemyGroup = this.physics.add.group({ runChildUpdate: true });
         this._waveManager = new WaveManager(this, this._enemyGroup);
+
+        const keyboard = this.input.keyboard;
+        if (keyboard) {
+            this._shopInteractKey = keyboard.addKey(
+                Phaser.Input.Keyboard.KeyCodes.F,
+            );
+            this._skipInterWaveKey = keyboard.addKey(
+                Phaser.Input.Keyboard.KeyCodes.SPACE,
+            );
+        }
 
         this.registry.set("current-score", this._player.anime);
         this.registry.set("final-score", this._player.anime);
@@ -76,6 +118,7 @@ export default class GamePlay extends Phaser.Scene {
         this.events.on("score-delta", this._onScoreDelta, this);
         this.events.on("update-score", this._onUpdateScore, this);
         this.events.on("wave-complete", this._onWaveComplete, this);
+        this.events.on("shop-chiuso", this._onShopClosed, this);
         this.events.once(Phaser.Scenes.Events.SHUTDOWN, this._onShutdown, this);
 
         this._waveManager.startWave(1);
@@ -85,6 +128,7 @@ export default class GamePlay extends Phaser.Scene {
         this._player?.update();
         this._merchant?.update(this._player.x, this._player.y);
         this._waveManager?.update();
+        this._updateInterWaveState();
     }
 
     private _onScoreDelta(soulsValue: number): void {
@@ -100,20 +144,114 @@ export default class GamePlay extends Phaser.Scene {
         this.registry.set("final-score", currentScore);
     }
 
-    /**
-     * We place the shop between waves to couple economy progression and combat
-     * pacing, then start the next wave only after the player exits the shop.
-     */
     private _onWaveComplete(completedWave: number): void {
-        const nextWave = completedWave + 1;
-        this._merchant.refreshStock(nextWave);
-        this._merchant.apriShopEsterno();
+        this._startInterWave(completedWave + 1);
+    }
 
-        this.events.once("shop-chiuso", () => {
-            this.time.delayedCall(400, () => {
-                this._waveManager.startWave(nextWave);
-            });
-        });
+    private _startInterWave(nextWave: number): void {
+        this._cancelInterWaveTimer();
+
+        this._pendingNextWave = Math.max(1, nextWave);
+        this._isInterWaveActive = true;
+        this._isPlayerNearMerchant = false;
+        this._interWaveEndsAtMs = this.time.now + GamePlay.INTER_WAVE_MAX_MS;
+        this._merchant.refreshStock(this._pendingNextWave);
+
+        this._interWaveTimer = this.time.delayedCall(
+            GamePlay.INTER_WAVE_MAX_MS,
+            () => {
+                this._startPendingWaveNow();
+            },
+        );
+    }
+
+    private _updateInterWaveState(): void {
+        if (!this._isInterWaveActive || this._merchant.shopAperto) {
+            return;
+        }
+
+        this._isPlayerNearMerchant = this._isPlayerWithinShopRange();
+
+        if (
+            this._isPlayerNearMerchant &&
+            this._shopInteractKey &&
+            Phaser.Input.Keyboard.JustDown(this._shopInteractKey)
+        ) {
+            this._merchant.apriShopEsterno();
+            return;
+        }
+
+        if (
+            this._skipInterWaveKey &&
+            Phaser.Input.Keyboard.JustDown(this._skipInterWaveKey)
+        ) {
+            this._startPendingWaveNow();
+        }
+    }
+
+    private _isPlayerWithinShopRange(): boolean {
+        const merchantBody = this._merchant.body as Phaser.Physics.Arcade.Body;
+
+        if (!merchantBody) {
+            const fallbackDistance = Phaser.Math.Distance.Between(
+                this._player.x,
+                this._player.y,
+                this._merchant.x,
+                this._merchant.y,
+            );
+            return fallbackDistance <= GamePlay.SHOP_INTERACTION_RADIUS_PX;
+        }
+
+        const closestX = Phaser.Math.Clamp(
+            this._player.x,
+            merchantBody.left,
+            merchantBody.right,
+        );
+        const closestY = Phaser.Math.Clamp(
+            this._player.y,
+            merchantBody.top,
+            merchantBody.bottom,
+        );
+
+        const distance = Phaser.Math.Distance.Between(
+            this._player.x,
+            this._player.y,
+            closestX,
+            closestY,
+        );
+
+        return distance <= GamePlay.SHOP_INTERACTION_RADIUS_PX;
+    }
+
+    private _startPendingWaveNow(): void {
+        if (!this._isInterWaveActive) {
+            return;
+        }
+
+        this._cancelInterWaveTimer();
+        this._isInterWaveActive = false;
+        this._isPlayerNearMerchant = false;
+        this._interWaveEndsAtMs = 0;
+
+        this._waveManager.startWave(this._pendingNextWave);
+    }
+
+    private _cancelInterWaveTimer(): void {
+        if (!this._interWaveTimer) {
+            return;
+        }
+
+        this._interWaveTimer.remove(false);
+        this._interWaveTimer = null;
+    }
+
+    private _onShopClosed(): void {
+        if (!this._isInterWaveActive) {
+            return;
+        }
+
+        // Close shop -> start next wave immediately and discard residual inter-wave time.
+        this._startPendingWaveNow();
     }
 
     private _onShutdown(): void {
@@ -126,6 +264,8 @@ export default class GamePlay extends Phaser.Scene {
         this.events.off("score-delta", this._onScoreDelta, this);
         this.events.off("update-score", this._onUpdateScore, this);
         this.events.off("wave-complete", this._onWaveComplete, this);
+        this.events.off("shop-chiuso", this._onShopClosed, this);
+        this._cancelInterWaveTimer();
         this._waveManager.stop();
     }
 }

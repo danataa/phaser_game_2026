@@ -16,6 +16,9 @@ interface IGamePlayHudBridge {
   waveManager?: {
     currentWave: number;
   };
+  isInterWaveActive: boolean;
+  interWaveRemainingMs: number;
+  canOpenShopAtMerchant: boolean;
   player: {
     getHp: number;
     getHpMax: () => number;
@@ -32,6 +35,8 @@ export default class Hud extends Phaser.Scene {
   private _healthBarBaseWidth: number = 374;
   private _healthValueText: Phaser.GameObjects.Text;
   private _waveIndicatorText: Phaser.GameObjects.Text;
+  private _interWaveText: Phaser.GameObjects.Text;
+  private _merchantHintText: Phaser.GameObjects.Text;
   private _slotQ: IPerkSlotUi;
   private _slotE: IPerkSlotUi;
 
@@ -50,6 +55,7 @@ export default class Hud extends Phaser.Scene {
 
     this._buildPlayerHpBar();
     this._buildWaveIndicator();
+    this._buildInterWaveTexts();
     this._slotQ = this._buildPerkSlot("Q", 26, 975);
     this._slotE = this._buildPerkSlot("E", 124, 975);
 
@@ -67,13 +73,14 @@ export default class Hud extends Phaser.Scene {
     this._updateSlotCooldown(this._slotQ);
     this._updateSlotCooldown(this._slotE);
     this._updateWaveIndicator();
+    this._updateInterWaveUi();
   }
 
   private _buildWaveIndicator(): void {
     this._waveIndicatorText = this.add.text(
       this.cameras.main.width - 40,
       20,
-      "ONDATA 1",
+      "1",
       {
         fontFamily: "'Press Start 2P'",
         fontSize: "30px",
@@ -85,6 +92,42 @@ export default class Hud extends Phaser.Scene {
     this._waveIndicatorText.setOrigin(1, 0);
     this._waveIndicatorText.setScrollFactor(0);
     this._waveIndicatorText.setDepth(1006);
+  }
+
+  private _buildInterWaveTexts(): void {
+    this._interWaveText = this.add.text(
+      this.cameras.main.width / 2,
+      58,
+      "",
+      {
+        fontFamily: "'Press Start 2P'",
+        fontSize: "12px",
+        color: "#ffe29a",
+        stroke: "#3d1a00",
+        strokeThickness: 3,
+      },
+    );
+    this._interWaveText.setOrigin(0.5, 0);
+    this._interWaveText.setScrollFactor(0);
+    this._interWaveText.setDepth(1007);
+    this._interWaveText.setVisible(false);
+
+    this._merchantHintText = this.add.text(
+      this.cameras.main.width / 2,
+      this.cameras.main.height - 76,
+      "",
+      {
+        fontFamily: "'Press Start 2P'",
+        fontSize: "12px",
+        color: "#fff8e7",
+        stroke: "#3d1a00",
+        strokeThickness: 3,
+      },
+    );
+    this._merchantHintText.setOrigin(0.5, 0.5);
+    this._merchantHintText.setScrollFactor(0);
+    this._merchantHintText.setDepth(1007);
+    this._merchantHintText.setVisible(false);
   }
 
   private _buildPlayerHpBar(): void {
@@ -244,6 +287,31 @@ export default class Hud extends Phaser.Scene {
     const waveValue = this._gamePlayScene?.waveManager?.currentWave;
     const wave = Math.max(1, waveValue ?? 1);
     this._waveIndicatorText.setText("" + wave);
+  }
+
+  private _updateInterWaveUi(): void {
+    if (!this._gamePlayScene?.isInterWaveActive) {
+      this._interWaveText.setVisible(false);
+      this._merchantHintText.setVisible(false);
+      return;
+    }
+
+    const remainingMs = Math.max(0, this._gamePlayScene.interWaveRemainingMs);
+    const remainingSeconds = Math.ceil(remainingMs / 1000);
+    this._interWaveText.setText(
+      "Alla prossima orda: "
+      + remainingSeconds
+      + "s  [SPACE] Inizia subito",
+    );
+    this._interWaveText.setVisible(true);
+
+    if (this._gamePlayScene.canOpenShopAtMerchant) {
+      this._merchantHintText.setText("Premi F per commerciare");
+      this._merchantHintText.setVisible(true);
+      return;
+    }
+
+    this._merchantHintText.setVisible(false);
   }
 
   private _onUpdateHp(currentHp: number, maxHp: number): void {
