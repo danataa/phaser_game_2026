@@ -3,6 +3,13 @@ import Actor from "./Actor";
 import Enemy from "./Enemy";
 import type Perk from "./perks/Perk";
 
+type HpUpdateTrigger =
+    | "init"
+    | "damage"
+    | "heal"
+    | "critical-enter"
+    | "critical-exit";
+
 // Personaggio controllato dal giocatore tramite WASD
 export default class Player extends Actor {
     // --- Configuration Properties ---
@@ -15,6 +22,7 @@ export default class Player extends Actor {
     private readonly _dashOverlayAlpha: number = 0.45;
     private readonly _dashOverlayTint: number = 0xffdd44;
     private readonly _defaultSfxVolume: number = 0.7;
+    private readonly _criticalHpThreshold: number = 20;
 
     // --- Input & State ---
     private _keys: {
@@ -37,6 +45,7 @@ export default class Player extends Actor {
     private _isAttacking: boolean = false;
     private _isDashing: boolean = false;
     private _hasPlayedDeathSfx: boolean = false;
+    private _isCriticalHpActive: boolean = false;
     private _lastMoveDirection: Phaser.Math.Vector2 = new Phaser.Math.Vector2(1, 0);
 
     constructor(scene: Phaser.Scene, x: number, y: number) {
@@ -66,7 +75,7 @@ export default class Player extends Actor {
             this.scene.input.off(Phaser.Input.Events.POINTER_DOWN, this._onPointerDown, this);
         });
 
-        this._emitHpUpdate();
+        this._emitHpUpdate("init");
     }
 
     get maxHp(): number {
@@ -146,7 +155,34 @@ export default class Player extends Actor {
         const healAmount = Math.ceil(this._hpMax * clampedPercent);
         const nextHp = Math.min(this.getHp + healAmount, this._hpMax);
         this.setHp(nextHp);
-        this._emitHpUpdate();
+        this._emitHpUpdate("heal");
+    }
+
+    /**
+     * `setTintFill` rende il feedback di cura robusto su texture dettagliate,
+     * dove un tint moltiplicativo puo' risultare poco leggibile.
+     */
+    playHealVisualFeedback(): void {
+        this.setTintFill(0x00ff00);
+        this.scene.tweens.add({
+            targets: this,
+            alpha: 0.8,
+            duration: 250,
+            yoyo: true,
+            onComplete: () => {
+                this.alpha = 1;
+                this.clearTint();
+            },
+        });
+
+        this.scene.time.delayedCall(500, () => {
+            if (!this.active) {
+                return;
+            }
+
+            this.alpha = 1;
+            this.clearTint();
+        });
     }
 
     /**
@@ -184,7 +220,7 @@ export default class Player extends Actor {
             this._hasPlayedDeathSfx = true;
         }
 
-        this._emitHpUpdate();
+        this._emitHpUpdate("damage");
     }
 
     get isDashing(): boolean {
@@ -300,12 +336,16 @@ export default class Player extends Actor {
             return;
         }
 
+        this._playSfx("player_attack");
+
         const worldPoint = this.scene.cameras.main.getWorldPoint(pointer.x, pointer.y);
         this._executeBaseAttack(worldPoint.x, worldPoint.y);
     }
         
     // Legge l'input WASD, aggiorna direzione, animazione e hitbox
     update(): void {
+        this._updateCriticalHpState();
+
         if (this._isAttacking) {
             this.setVelocity(0, 0);
             return;
@@ -515,9 +555,77 @@ export default class Player extends Actor {
         }
     }
 
-    private _emitHpUpdate(): void {
+    /**
+     * Un payload unico evita divergenze tra HUD e gameplay quando piu' sistemi
+     * aggiornano gli HP nello stesso intervallo di frame.
+     */
+    private _emitHpUpdate(trigger: HpUpdateTrigger): void {
+        const isCriticalHp = this.getHp <= this._criticalHpThreshold;
         this.scene.events.emit("vita-cambiata", this.getHp, this._hpMax);
-        this.scene.events.emit("update-hp", this.getHp, this._hpMax);
+        this.scene.events.emit(
+            "update-hp",
+            this.getHp,
+            this._hpMax,
+            {
+                isCriticalHp,
+                trigger,
+            },
+        );
+    }
+
+    /**
+     * Il gate interno garantisce il trigger one-shot al passaggio sotto soglia
+     * e previene spam audio quando gli HP restano in area critica.
+     */
+    private _updateCriticalHpState(): void {
+        if (this.getHp <= this._criticalHpThreshold) {
+            if (this._isCriticalHpActive) {
+                return;
+            }
+
+            this._isCriticalHpActive = true;
+            this._playLowHealthSfx();
+            this._emitHpUpdate("critical-enter");
+            return;
+        }
+
+        if (!this._isCriticalHpActive) {
+            return;
+        }
+
+        this._isCriticalHpActive = false;
+        this._emitHpUpdate("critical-exit");
+    }
+
+    /**
+     * L'helper centralizza fallback e volume per mantenere coerente il mix SFX
+     * in tutti i trigger gameplay del player.
+     */
+    private _playSfx(key: string): void {
+        if (!this.scene.cache.audio.exists(key)) {
+            return;
+        }
+
+        try {
+            this.scene.sound.play(key, {
+                volume: this._defaultSfxVolume,
+            });
+        } catch (_error) {
+            console.warn("Audio " + key + " non disponibile.");
+        }
+    }
+
+    /**
+     * Supportiamo entrambe le varianti del nome per evitare regressioni dovute
+     * a typo legacy tra `player_lowHealt` e `player_lowHealth`.
+     */
+    private _playLowHealthSfx(): void {
+        if (this.scene.cache.audio.exists("player_lowHealt")) {
+            this._playSfx("player_lowHealt");
+            return;
+        }
+
+        this._playSfx("player_lowHealth");
     }
 
     get anime(): number {
@@ -564,7 +672,7 @@ export default class Player extends Actor {
         const delta = Math.max(0, amount);
         this._hpMax += delta;
         this.setHp(Math.min(this.getHp + delta, this._hpMax));
-        this._emitHpUpdate();
+        this._emitHpUpdate("heal");
     }
 
     aumentaAtk(amountPercent: number): void {

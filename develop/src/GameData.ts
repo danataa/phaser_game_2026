@@ -73,6 +73,7 @@ export const GameData: any = {
         "assets/sounds/music/epic_skyrym.m4a",
       ],
     },
+
     {
       name: "game_music",
       paths: [
@@ -80,18 +81,18 @@ export const GameData: any = {
         "assets/sounds/music/doungeon_skyrym.m4a",
       ],
     },
-    {
-      name: "player_dead",
-      paths: ["assets/sounds/effects/player_dead.mp3"],
-    },
-    {
-      name: "enemy_dead",
-      paths: ["assets/sounds/effects/enemy_dead.mp3"],
-    },
-    {
-      name: "welcome",
-      paths: ["assets/sounds/effects/welcome.mp3"],
-    },
+
+    { name: "player_dead", paths: ["assets/sounds/effects/player_dead.mp3"], },
+    { name: "player_attack", paths: ["assets/sounds/effects/player_attack.mp3"], },
+    { name: "player_lowHealth", paths: ["assets/sounds/effects/player_lowHealth.mp3"], },
+
+    { name: "perk_aoe", paths: ["assets/sounds/effects/perk_aoe.mp3"], },
+    { name: "perk_dash", paths: ["assets/sounds/effects/perk_dash.mp3"], },
+    { name: "perk_heal", paths: ["assets/sounds/effects/perk_heal.mp3"], },
+
+    { name: "enemy_dead", paths: ["assets/sounds/effects/enemy_dead.mp3"], },
+
+    { name: "welcome", paths: ["assets/sounds/effects/welcome.mp3"], },
   ],
 
   videos: [

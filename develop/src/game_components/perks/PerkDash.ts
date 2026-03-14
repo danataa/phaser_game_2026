@@ -65,7 +65,15 @@ export default class PerkDash extends Perk {
             return;
         }
 
-        this.owner.startDash(direction, this._dashPower, this._dashDuration);
+        const hasStartedDash = this.owner.startDash(
+            direction,
+            this._dashPower,
+            this._dashDuration,
+        );
+
+        if (hasStartedDash) {
+            this._playDashSfx();
+        }
     }
 
     /**
@@ -74,5 +82,24 @@ export default class PerkDash extends Perk {
      */
     private _resolveDashDirection(): Phaser.Math.Vector2 {
         return this.owner.getDashDirectionSnapshot();
+    }
+
+    /**
+     * Riprodurre il suono subito dopo `startDash` garantisce coerenza temporale
+     * con il frame in cui la velocita' viene applicata al body del player.
+     */
+    private _playDashSfx(): void {
+        const scene = this.owner.scene;
+        if (!scene.cache.audio.exists("perk_dash")) {
+            return;
+        }
+
+        try {
+            scene.sound.play("perk_dash", {
+                volume: 0.7,
+            });
+        } catch (_error) {
+            console.warn("Audio perk_dash non disponibile.");
+        }
     }
 }

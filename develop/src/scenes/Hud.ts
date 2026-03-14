@@ -11,6 +11,11 @@ interface IPerkSlotUi {
   perk: Perk | null;
 }
 
+interface IHpUpdateMeta {
+  isCriticalHp?: boolean;
+  trigger?: string;
+}
+
 interface IGamePlayHudBridge {
   events: Phaser.Events.EventEmitter;
   waveManager?: {
@@ -39,6 +44,9 @@ export default class Hud extends Phaser.Scene {
   private _merchantHintText: Phaser.GameObjects.Text;
   private _slotQ: IPerkSlotUi;
   private _slotE: IPerkSlotUi;
+  private _criticalHpTween: Phaser.Tweens.Tween | null = null;
+  private _healFlashTween: Phaser.Tweens.Tween | null = null;
+  private _isCriticalHp: boolean = false;
 
   constructor() {
     super({ key: "Hud" });
@@ -314,11 +322,100 @@ export default class Hud extends Phaser.Scene {
     this._merchantHintText.setVisible(false);
   }
 
-  private _onUpdateHp(currentHp: number, maxHp: number): void {
+  private _onUpdateHp(
+    currentHp: number,
+    maxHp: number,
+    meta?: IHpUpdateMeta,
+  ): void {
     const safeMaxHp = Math.max(1, maxHp);
     const ratio = Phaser.Math.Clamp(currentHp / safeMaxHp, 0, 1);
     this._healthBar.width = ratio * this._healthBarBaseWidth;
     this._healthValueText.setText(currentHp + " / " + safeMaxHp);
+
+    const isCriticalHp = meta?.isCriticalHp ?? currentHp <= 20;
+    if (isCriticalHp !== this._isCriticalHp) {
+      this._isCriticalHp = isCriticalHp;
+      if (this._isCriticalHp) {
+        this._startCriticalHpFlash();
+      } else {
+        this._stopCriticalHpFlash();
+      }
+    }
+
+    if (meta?.trigger === "heal") {
+      this._playHealFlash();
+    }
+  }
+
+  /**
+   * Usiamo un tween ciclico per l'hp critico per ottenere un ritmo stabile e
+   * indipendente dal frame-rate, senza timer multipli in concorrenza.
+   */
+  private _startCriticalHpFlash(): void {
+    this._stopCriticalHpFlash();
+    this._healthBar.setFillStyle(0xff5555, 1);
+
+    this._criticalHpTween = this.tweens.addCounter({
+      from: 0,
+      to: 1,
+      duration: 120,
+      yoyo: true,
+      repeat: -1,
+      onYoyo: () => {
+        this._healthBar.setFillStyle(0xffffff, 1);
+      },
+      onRepeat: () => {
+        this._healthBar.setFillStyle(0xff5555, 1);
+      },
+    });
+  }
+
+  /**
+   * Lo stop esplicito evita che tween residui continuino a modificare il colore
+   * quando gli HP tornano fuori dalla zona critica.
+   */
+  private _stopCriticalHpFlash(): void {
+    if (this._criticalHpTween) {
+      this._criticalHpTween.stop();
+      this._criticalHpTween = null;
+    }
+
+    this._healthBar.setFillStyle(0x42c86f, 1);
+  }
+
+  /**
+   * Il lampo verde comunica un evento positivo istantaneo senza alterare la
+   * scala della barra, preservando leggibilita' del valore HP corrente.
+   */
+  private _playHealFlash(): void {
+    if (this._healFlashTween) {
+      this._healFlashTween.stop();
+      this._healFlashTween = null;
+    }
+
+    this._healthBar.setFillStyle(0x00ff66, 1);
+    this._healFlashTween = this.tweens.addCounter({
+      from: 0,
+      to: 1,
+      duration: 70,
+      yoyo: true,
+      repeat: 2,
+      onYoyo: () => {
+        this._healthBar.setFillStyle(0xffffff, 1);
+      },
+      onRepeat: () => {
+        this._healthBar.setFillStyle(0x00ff66, 1);
+      },
+      onComplete: () => {
+        this._healFlashTween = null;
+        if (this._isCriticalHp) {
+          this._healthBar.setFillStyle(0xff5555, 1);
+          return;
+        }
+
+        this._healthBar.setFillStyle(0x42c86f, 1);
+      },
+    });
   }
 
   private _onPerkEquipped(slot: PerkSlot, perk: Perk | null): void {
@@ -376,6 +473,13 @@ export default class Hud extends Phaser.Scene {
   }
 
   private _onShutdown(): void {
+    this._stopCriticalHpFlash();
+
+    if (this._healFlashTween) {
+      this._healFlashTween.stop();
+      this._healFlashTween = null;
+    }
+
     this.scene.get("GamePlay").events.off(
       "update-hp",
       this._onUpdateHp,

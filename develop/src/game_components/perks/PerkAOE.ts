@@ -31,6 +31,13 @@ export default class PerkAOE extends Perk {
         const player = this.owner;
         const scene = player.scene;
 
+        const animationCompleteEvent =
+            Phaser.Animations.Events.ANIMATION_COMPLETE_KEY
+            + "attack_smash";
+        player.once(animationCompleteEvent, () => {
+            this._playAoeSfx(scene);
+        });
+
         player.performSmashAttack(() => {
             const body = player.body as Phaser.Physics.Arcade.Body;
             const centerX = body.center.x;
@@ -61,5 +68,23 @@ export default class PerkAOE extends Perk {
                 player.applyHitFeedback(hitEnemies);
             }
         });
+    }
+
+    /**
+     * L'audio e' agganciato a `animationcomplete` per allineare il picco sonoro
+     * al frame di impatto reale, evitando percezioni di latenza sul colpo AOE.
+     */
+    private _playAoeSfx(scene: Phaser.Scene): void {
+        if (!scene.cache.audio.exists("perk_aoe")) {
+            return;
+        }
+
+        try {
+            scene.sound.play("perk_aoe", {
+                volume: 0.7,
+            });
+        } catch (_error) {
+            console.warn("Audio perk_aoe non disponibile.");
+        }
     }
 }
